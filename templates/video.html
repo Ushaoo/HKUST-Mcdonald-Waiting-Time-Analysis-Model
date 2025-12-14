@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时视频监测</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            color: #4CAF50;
+        }
+        
+        .back-btn {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #777;
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        video, img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .video-stream {
+            width: 100%;
+            height: auto;
+        }
+        
+        .status {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .stat-box {
+            background: #2a2a2a;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📹 实时视频监测</h1>
+            <a href="/" class="back-btn">← 返回</a>
+        </div>
+        
+        <div class="video-container">
+            <img src="/video_feed" alt="Video Stream" class="video-stream">
+        </div>
+        
+        <div class="status">
+            <div class="stat-box">
+                <div class="stat-label">实时人数</div>
+                <div class="stat-value" id="person-count">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">人群密度</div>
+                <div class="stat-value" id="density">-</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 如果需要动态更新统计信息，可以添加WebSocket或定期请求
+    </script>
+</body>
+</html>
