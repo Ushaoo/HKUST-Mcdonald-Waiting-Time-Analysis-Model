@@ -13,27 +13,33 @@
     <a href="/history" class="toggle-btn">查看历史数据</a>
   </header>
 
-  <main class="card-container three-cards">
+  <main>
 
-    <div class="card">
-      <h2>预计取餐时间</h2>
-      <p class="value">{{ data.pickup_time }}</p>
-      <p class="desc">根据当前人流量估算</p>
-    </div>
+    <!-- ✅ 统一容器：三个卡片视觉上组成一个矩形 -->
+    <div class="card-group">
 
-    <div class="card">
-      <h2>当前人流量</h2>
-      <p class="value">{{ data.crowd_level }}</p>
-      <p class="desc">{{ data.crowd_range }}</p>
-    </div>
+      <!-- ✅ 第一行：两个卡片并排 -->
+      <div class="card-row">
+        <div class="card card-left">
+          <h2>预计取餐时间</h2>
+          <p class="value">{{ data.pickup_time }}</p>
+        </div>
 
-    <!-- ✅ 新增：摄像头实时画面 -->
-    <div class="card video-card">
-      <h2>实时排队画面</h2>
-      <div class="video-wrapper">
-        <img src="/video_feed" class="video-frame" alt="camera stream">
+        <div class="card card-right">
+          <h2>当前人流量</h2>
+          <p class="value">{{ data.crowd_level }}</p>
+        </div>
       </div>
-      <p class="desc">摄像头实时画面，用于辅助估算</p>
+
+      <!-- ✅ 第二行：视频卡片宽度与上方两卡片总宽度一致 -->
+      <div class="card video-card">
+        <h2>实时排队画面</h2>
+
+        <div class="video-wrapper-wide">
+          <img src="/video_feed" class="video-frame" alt="camera stream">
+        </div>
+      </div>
+
     </div>
 
   </main>
