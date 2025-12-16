@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频检测</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            color: #00bfff;
+        }
+        
+        .back-btn {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #777;
+        }
+        
+        .upload-section {
+            background: #2a2a2a;
+            border: 2px dashed #00bfff;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #fff;
+            background: #333;
+        }
+        
+        .upload-section.dragover {
+            background: #3a3a3a;
+            border-color: #fff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .upload-text {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #00bfff 0%, #0099cc 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 191, 255, 0.3);
+        }
+        
+        .result-section {
+            display: none;
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .result-section.show {
+            display: block;
+        }
+        
+        .result-video {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: #000;
+        }
+        
+        .result-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: #1a1a1a;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border-left: 4px solid #00bfff;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00bfff;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00bfff 0%, #0099cc 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #00bfff;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #8B0000;
+            border: 1px solid #ff6b6b;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .success-message {
+            background: #006400;
+            border: 1px solid #4CAF50;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+
+        .processing-status {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .processing-status.show {
+            display: block;
+        }
+
+        .status-text {
+            margin-bottom: 10px;
+            color: #00bfff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 视频检测</h1>
+            <a href="/" class="back-btn">← 返回</a>
+        </div>
+        
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+        
+        <div class="upload-section" id="upload-section">
+            <div class="upload-icon">🎥</div>
+            <div class="upload-text">点击上传或拖拽视频到这里</div>
+            <div class="upload-hint">支持 MP4, AVI, MOV, MKV, FLV, WMV 格式，最大 500MB</div>
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                选择文件
+            </button>
+            <input type="file" id="file-input" accept="video/*" onchange="handleFileSelect(event)">
+        </div>
+        
+        <div class="processing-status" id="processing-status">
+            <div class="status-text" id="status-text">准备处理视频...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="spinner" style="margin: 0 auto;"></div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在处理视频，请稍候...</p>
+        </div>
+        
+        <div class="result-section" id="result-section">
+            <h2 style="margin-bottom: 20px;">✅ 检测完成</h2>
+            <video id="result-video" class="result-video" controls style="max-width: 100%;">
+                您的浏览器不支持 HTML5 视频标签
+            </video>
+            <div class="result-stats">
+                <div class="stat-box">
+                    <div class="stat-label">平均人数</div>
+                    <div class="stat-value" id="result-avg">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">最多人数</div>
+                    <div class="stat-value" id="result-max">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">最少人数</div>
+                    <div class="stat-value" id="result-min">-</div>
+                </div>
+            </div>
+            <div class="stat-box" style="margin-bottom: 20px; border-left-color: #666;">
+                <div class="stat-label">处理信息</div>
+                <div style="color: #ccc; text-align: left; font-size: 14px;">
+                    <p style="margin-bottom: 8px;">已分析帧数: <span id="result-frames">-</span></p>
+                    <p style="margin-bottom: 8px;">总帧数: <span id="result-total">-</span></p>
+                    <p style="margin-bottom: 8px; color: #00bfff;">✓ 已保存到本地: <span id="result-filename">-</span></p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="upload-btn" id="download-btn" onclick="downloadVideo()" style="flex: 1; min-width: 150px;">
+                    ⬇️ 下载视频
+                </button>
+                <button class="upload-btn" onclick="resetUpload()" style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #666 0%, #444 100%);">
+                    重新上传
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const uploadSection = document.getElementById('upload-section');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('result-section');
+        const processingStatus = document.getElementById('processing-status');
+        const errorMessage = document.getElementById('error-message');
+        const successMessage = document.getElementById('success-message');
+        
+        // 拖拽上传
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({target: fileInput});
+            }
+        });
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 隐藏错误和成功信息
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+            
+            // 检查文件类型
+            const videoTypes = ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-matroska', 'video/x-flv', 'video/x-ms-wmv', 'video/x-msvideo'];
+            if (!videoTypes.some(type => file.type.includes('video'))) {
+                showError('不支持的文件格式，请上传视频文件');
+                return;
+            }
+            
+            // 检查文件大小（500MB）
+            if (file.size > 500 * 1024 * 1024) {
+                showError('文件过大，请上传小于 500MB 的视频');
+                return;
+            }
+            
+            // 上传文件
+            uploadFile(file);
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            loading.style.display = 'block';
+            processingStatus.classList.add('show');
+            resultSection.classList.remove('show');
+            uploadSection.style.display = 'none';
+            
+            const statusText = document.getElementById('status-text');
+            const progressFill = document.getElementById('progress-fill');
+            let progressValue = 0;
+            
+            // 模拟进度条
+            const progressInterval = setInterval(() => {
+                if (progressValue < 90) {
+                    progressValue += Math.random() * 20;
+                    if (progressValue > 90) progressValue = 90;
+                    progressFill.style.width = progressValue + '%';
+                }
+            }, 500);
+            
+            fetch('/upload_video', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                loading.style.display = 'none';
+                
+                setTimeout(() => {
+                    if (data.success) {
+                        document.getElementById('result-video').src = data.video_url;
+                        document.getElementById('result-avg').textContent = data.avg_people.toFixed(1);
+                        document.getElementById('result-max').textContent = data.max_people;
+                        document.getElementById('result-min').textContent = data.min_people;
+                        document.getElementById('result-frames').textContent = data.frames_analyzed;
+                        document.getElementById('result-total').textContent = data.total_frames;
+                        
+                        // 设置下载链接
+                        const filename = data.video_url.split('/').pop();
+                        document.getElementById('result-filename').textContent = filename;
+                        document.getElementById('download-btn').onclick = function() {
+                            downloadVideo(data.download_url);
+                        };
+                        
+                        processingStatus.classList.remove('show');
+                        resultSection.classList.add('show');
+                        showSuccess('视频处理完成，已保存到本地！');
+                    } else {
+                        processingStatus.classList.remove('show');
+                        showError(data.error || '处理视频失败');
+                        uploadSection.style.display = 'block';
+                    }
+                }, 300);
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                loading.style.display = 'none';
+                processingStatus.classList.remove('show');
+                uploadSection.style.display = 'block';
+                showError('上传失败：' + error);
+            });
+        }
+        
+        function resetUpload() {
+            fileInput.value = '';
+            resultSection.classList.remove('show');
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+            uploadSection.style.display = 'block';
+            document.getElementById('progress-fill').style.width = '0%';
+        }
+        
+        function downloadVideo(downloadUrl) {
+            if (!downloadUrl) {
+                showError('下载链接不可用');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = downloadUrl.split('/').pop();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+        
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.classList.add('show');
+        }
+    </script>
+</body>
+</html>
