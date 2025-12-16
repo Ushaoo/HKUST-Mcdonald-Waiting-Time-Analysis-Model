@@ -1,3 +1,10 @@
+/* 全局：避免 padding 影响卡片宽度计算 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   background-color: #FFF7E0;
   font-family: 'Noto Sans', sans-serif;
@@ -26,27 +33,23 @@ body {
   font-weight: bold;
 }
 
-/* ✅ 统一容器：三个卡片视觉上组成一个矩形 */
+/* ✅ 统一容器：三个卡片组成一个矩形 */
 .card-group {
-  width: 650px;
+  max-width: 650px;
   margin: 40px auto;
 }
 
-/* ✅ 第一行：两个卡片并排，使用 gap 控制间距 */
+/* ✅ 第一行：两个卡片并排 */
 .card-row {
   display: flex;
-  gap: 10px;   /* ✅ 固定间距，避免 space-between 拉开 */
+  gap: 10px;
   margin-bottom: 16px;
 }
 
-/* ✅ 左卡片（预计取餐时间） */
-.card-left {
-  width: 320px;   /* ✅ 与右卡片合计刚好 650px */
-}
-
-/* ✅ 右卡片（当前人流量） */
+/* ✅ 左右卡片自动平分宽度 */
+.card-left,
 .card-right {
-  width: 320px;   /* ✅ 右边缘与视频卡片齐平 */
+  flex: 1;
 }
 
 /* ✅ 卡片通用样式 */
@@ -57,16 +60,12 @@ body {
   box-shadow: 0 4px 14px rgba(0,0,0,0.1);
 }
 
-/* ✅ 视频卡片宽度与上方两卡片总宽度一致 */
+/* ✅ 视频卡片宽度与上排两卡片总宽度完全一致 */
 .video-card {
-  width: 100%;    /* ✅ 自动等于 650px，与上方两卡片对齐 */
-  background-color: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  width: 100%;
 }
 
-/* ✅ 视频画面占据卡片大部分空间（横屏 16:9） */
+/* ✅ 视频画面（16:9） */
 .video-wrapper-wide {
   width: 100%;
   aspect-ratio: 16 / 9;
