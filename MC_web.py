@@ -21,16 +21,23 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 
 class CrowdDensityMonitor:
-    def __init__(self, model_name='yolov8n.pt', camera_id=0, width=1280, height=720):
+    def __init__(self, model_name='yolov8n.pt', camera_id=0, width=1280, height=720, conf=0.1):
         """Initialize YOLO model and camera
         
         Args:
-            model_name: YOLO模型文件名
+            model_name: YOLO模型文件名 (yolov8n/s/m/l/x.pt)
             camera_id: 摄像头ID
             width: 输入分辨率宽度 (推荐: 1280)
             height: 输入分辨率高度 (推荐: 720)
+            conf: 置信度阈值 (默认: 0.35，范围: 0.1-0.9)
         """
+        # 实时视频流专用模型
         self.model = YOLO(model_name)
+        # 上传文件处理专用模型 - 独立实例，不与实时视频竞争资源
+        self.upload_model = YOLO(model_name)
+        
+        # 检测参数 - 可配置
+        self.confidence_threshold = conf
         self.cap = cv2.VideoCapture(camera_id)
         self.cap.set(cv2.CAP_PROP_FPS, 30)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
@@ -62,6 +69,8 @@ class CrowdDensityMonitor:
         print("初始化完成（高分辨率+多线程优化）")
         print(f"  - 请求分辨率: {width}x{height}")
         print(f"  - 实际分辨率: {actual_width}x{actual_height}")
+        print(f"  - 模型: {model_name}")
+        print(f"  - 置信度阈值: {self.confidence_threshold} (越低检测越灵敏，越容易误检)")
         print(f"  - 模式: 多线程分离视频流和检测")
         print(f"  - 检测间隔: 每{self.detection_interval}帧")
         print(f"  - 视频流: 独立处理，保证30 FPS流畅 + 高精度检测")
@@ -93,7 +102,7 @@ class CrowdDensityMonitor:
                 try:
                     start_time = time.time()
                     # 使用原始分辨率进行高精度检测
-                    results = self.model(frame_to_detect, classes=0, conf=0.5, verbose=False)
+                    results = self.model(frame_to_detect, classes=0, conf=self.confidence_threshold, verbose=False)
                     self.inference_time = time.time() - start_time
                     detections = results[0].boxes
                     
@@ -141,10 +150,13 @@ class CrowdDensityMonitor:
         return frame
     
     def generate_frames(self):
-        """生成视频流 - 专门用于视频播放，不做任何检测"""
-        detection_frame_counter = 0
+        """生成视频流 - 仅用于视频播放，不做任何检测或绘制
         
-        print("[视频流] 开始生成视频帧流...", flush=True)
+        这是轻量级方案：只输出原始视频流，不在服务器端绘制
+        检测结果通过单独的 API 返回，由客户端负责可视化
+        这样可以大大减少 RDK 的 CPU 占用"""
+        print("[视频流] 开始生成轻量级视频帧流（无绘制）...", flush=True)
+        detection_frame_counter = 0
         
         while True:
             ret, frame = self.cap.read()
@@ -160,23 +172,8 @@ class CrowdDensityMonitor:
             detection_frame_counter += 1
             self.frame_count += 1
             
-            # 获取最新的检测结果（来自后台线程）
-            with self.lock:
-                person_count = self.person_count
-                density = self.density
-                detections = self.detections
-            
-            # 绘制信息
-            display_frame = self.draw_info(frame, person_count, density)
-            
-            # 绘制检测框
-            if len(detections) > 0:
-                for detection in detections:
-                    x1, y1, x2, y2 = detection.xyxy[0]
-                    cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-            
-            # 编码为JPEG（质量70以减少带宽）
-            ret, buffer = cv2.imencode('.jpg', display_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            # 编码为JPEG（质量70以减少带宽）- 仅输出原始视频，无任何绘制
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             frame_data = buffer.tobytes()
             
             # 流式输出
@@ -203,9 +200,152 @@ class CrowdDensityMonitor:
             cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
         
         return display_frame, person_count, density
+    
+    def process_uploaded_image(self, image_path):
+        """
+        [上传文件专用] 处理上传的图片 - 使用独立的模型实例
+        避免与实时视频流竞争资源，确保更快的处理速度
+        """
+        import time
+        frame = cv2.imread(image_path)
+        if frame is None:
+            return None, 0, 0
+        
+        # Resize if too large
+        if frame.shape[0] > 1080 or frame.shape[1] > 1920:
+            frame = cv2.resize(frame, (960, 720))
+        
+        try:
+            start_time = time.time()
+            # 使用独立的 upload_model 进行检测，不受实时视频线程影响
+            results = self.upload_model(frame, classes=0, conf=self.confidence_threshold, verbose=False)
+            inference_time = time.time() - start_time
+            detections = results[0].boxes
+            
+            person_count = len(detections)
+            frame_area = frame.shape[0] * frame.shape[1]
+            density = person_count / (frame_area / 10000)
+            
+            print(f"[上传图片] 检测完成 | {person_count}人 | 耗时: {inference_time*1000:.0f}ms", flush=True)
+            
+            display_frame = self.draw_info(frame, person_count, density)
+            
+            for detection in detections:
+                x1, y1, x2, y2 = detection.xyxy[0]
+                cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+            
+            return display_frame, person_count, density
+        
+        except Exception as e:
+            print(f"[上传图片] 检测失败: {e}", flush=True)
+            return None, 0, 0
+    
+    def process_uploaded_video(self, video_path, output_path):
+        """
+        [上传文件专用] 处理上传的视频 - 使用独立的模型实例
+        避免与实时视频流竞争资源，实现全速处理
+        """
+        import time
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            return None
+        
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # 定义视频编码和输出
+        codec_chain = [
+            ('MJPG', cv2.VideoWriter_fourcc(*'MJPG'), 'avi'),
+            ('XVID', cv2.VideoWriter_fourcc(*'XVID'), 'avi'),
+            ('FFV1', cv2.VideoWriter_fourcc(*'FFV1'), 'avi'),
+        ]
+        
+        out = None
+        output_file = None
+        
+        for codec_name, fourcc, ext in codec_chain:
+            output_file = output_path.replace('.avi', '') + f'.{ext}'
+            try:
+                out = cv2.VideoWriter(output_file, fourcc, fps, (frame_width, frame_height))
+                if out.isOpened():
+                    print(f"[上传视频] 编码器: {codec_name}", flush=True)
+                    break
+            except:
+                pass
+        
+        if out is None or not out.isOpened():
+            print("[上传视频] 无法创建输出视频", flush=True)
+            cap.release()
+            return None
+        
+        frame_count = 0
+        person_counts = []
+        density_values = []
+        
+        print(f"[上传视频] 开始处理 | 总帧数: {total_frames} | 分辨率: {frame_width}x{frame_height}", flush=True)
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame_count += 1
+            
+            try:
+                # 使用独立的 upload_model 进行检测，全速处理
+                results = self.upload_model(frame, classes=0, conf=self.confidence_threshold, verbose=False)
+                detections = results[0].boxes
+                
+                person_count = len(detections)
+                frame_area = frame.shape[0] * frame.shape[1]
+                density = person_count / (frame_area / 10000)
+                
+                person_counts.append(person_count)
+                density_values.append(density)
+                
+                # 绘制信息
+                display_frame = self.draw_info(frame, person_count, density)
+                
+                # 绘制检测框
+                for detection in detections:
+                    x1, y1, x2, y2 = detection.xyxy[0]
+                    cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                
+                out.write(display_frame)
+                
+                # 每50帧输出一次进度
+                if frame_count % 50 == 0:
+                    progress = (frame_count / total_frames) * 100
+                    print(f"[上传视频] 进度: {frame_count}/{total_frames} ({progress:.1f}%) | 当前: {person_count}人", flush=True)
+            
+            except Exception as e:
+                print(f"[上传视频] 处理第{frame_count}帧失败: {e}", flush=True)
+                out.write(frame)
+        
+        cap.release()
+        out.release()
+        
+        # 计算统计信息
+        avg_count = sum(person_counts) / len(person_counts) if person_counts else 0
+        min_count = min(person_counts) if person_counts else 0
+        max_count = max(person_counts) if person_counts else 0
+        
+        print(f"[上传视频] 处理完成 | 平均: {avg_count:.1f}人 | 最小: {min_count}人 | 最大: {max_count}人", flush=True)
+        
+        return {
+            'avg_count': avg_count,
+            'min_count': min_count,
+            'max_count': max_count,
+            'total_frames': frame_count,
+            'output_file': output_file
+        }
 
 # Initialize monitor with high resolution for better detection
-monitor = CrowdDensityMonitor(width=1280, height=720)  # 1280x720 for better long-range detection
+# conf=0.35 使得检测更灵敏，可以检测到边缘和部分遮挡的人体
+monitor = CrowdDensityMonitor(width=1280, height=720, conf=0.35)
 monitor.start_detection_thread()  # 启动后台检测线程
 
 def allowed_file(filename):
@@ -213,6 +353,14 @@ def allowed_file(filename):
 
 def allowed_video(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in VIDEO_EXTENSIONS
+
+def is_image(filename):
+    """检查是否为图片"""
+    return allowed_file(filename)
+
+def is_video(filename):
+    """检查是否为视频"""
+    return allowed_video(filename)
 
 # ==================== Routes ====================
 
@@ -224,12 +372,15 @@ def index():
 @app.route('/mode/<mode>')
 def mode_select(mode):
     """根据选择的模式返回相应页面"""
-    if mode == 'video':
-        return render_template('video.html')
+    if mode == 'video' or mode == 'video_optimized':
+        # 统一使用优化版本（客户端渲染）
+        return render_template('video_optimized.html')
     elif mode == 'upload':
         return render_template('upload.html')
     elif mode == 'upload_video':
         return render_template('upload_video.html')
+    elif mode == 'upload_unified':
+        return render_template('upload_unified.html')
     else:
         return redirect('/')
 
@@ -239,9 +390,103 @@ def video_feed():
     return Response(monitor.generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/api/config', methods=['GET', 'POST'])
+def config_api():
+    """获取或修改配置参数"""
+    if request.method == 'GET':
+        return jsonify({
+            'confidence_threshold': monitor.confidence_threshold,
+            'detection_interval': monitor.detection_interval,
+            'model_info': {
+                'model': 'yolov8n (nano) - 速度快，精度中等',
+                'models_available': [
+                    'yolov8n.pt (nano) - 最快，精度最低',
+                    'yolov8s.pt (small) - 更好的精度',
+                    'yolov8m.pt (medium) - 很好的精度，较慢',
+                    'yolov8l.pt (large) - 最高精度，最慢',
+                ]
+            }
+        })
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        # 修改置信度阈值
+        if 'confidence_threshold' in data:
+            new_conf = float(data['confidence_threshold'])
+            if 0.1 <= new_conf <= 0.9:
+                monitor.confidence_threshold = new_conf
+                print(f"[配置] 置信度已更新为: {new_conf}", flush=True)
+                return jsonify({'success': True, 'message': f'置信度已更新为 {new_conf}'})
+            else:
+                return jsonify({'success': False, 'error': '置信度必须在 0.1-0.9 之间'}), 400
+        
+        return jsonify({'success': False, 'error': '无有效参数'}), 400
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """获取实时检测统计"""
+    with monitor.lock:
+        return jsonify({
+            'person_count': monitor.person_count,
+            'density': monitor.density,
+            'inference_time': monitor.inference_time,
+            'confidence_threshold': monitor.confidence_threshold,
+            'frame_count': monitor.frame_count
+        })
+
+@app.route('/api/detections', methods=['GET'])
+def get_detections():
+    """获取最新的检测结果 - 用于浏览器端可视化
+    
+    返回格式:
+    {
+        'person_count': 人数,
+        'density': 密度,
+        'inference_time': 推理耗时(秒),
+        'detections': [
+            {'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'confidence': conf},
+            ...
+        ],
+        'frame_info': {
+            'width': 宽度,
+            'height': 高度,
+            'frame_count': 帧数
+        }
+    }
+    """
+    with monitor.lock:
+        detections_list = []
+        
+        # 转换 YOLO 检测结果为坐标数据
+        if len(monitor.detections) > 0:
+            for detection in monitor.detections:
+                x1, y1, x2, y2 = detection.xyxy[0]
+                conf = detection.conf[0]
+                detections_list.append({
+                    'x1': float(x1),
+                    'y1': float(y1),
+                    'x2': float(x2),
+                    'y2': float(y2),
+                    'confidence': float(conf)
+                })
+        
+        return jsonify({
+            'person_count': monitor.person_count,
+            'density': monitor.density,
+            'inference_time': monitor.inference_time,
+            'detections': detections_list,
+            'frame_info': {
+                'width': 1280,
+                'height': 720,
+                'frame_count': monitor.frame_count
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """处理上传的照片"""
+    """处理上传的照片 [使用独立模型，不影响实时视频]"""
     if 'file' not in request.files:
         return jsonify({'error': '没有文件'}), 400
     
@@ -255,8 +500,8 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # 处理图像
-        result_frame, person_count, density = monitor.process_image(filepath)
+        # 使用专用的上传模型处理图像 - 独立的资源，不与实时视频竞争
+        result_frame, person_count, density = monitor.process_uploaded_image(filepath)
         
         if result_frame is None:
             return jsonify({'error': '无法读取图像'}), 400
@@ -301,7 +546,7 @@ def get_processed_video(filename):
 
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
-    """处理上传的视频"""
+    """处理上传的视频 [使用独立模型，不影响实时视频]"""
     if 'file' not in request.files:
         return jsonify({'error': '没有文件'}), 400
     
@@ -315,192 +560,31 @@ def upload_video():
         video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(video_path)
         
-        # 处理视频
+        # 使用专用的上传模型处理视频 - 独立的资源，不与实时视频竞争
+        output_filename = f'result_video_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        
         try:
-            result_path, frames_analyzed, total_frames, people_data = process_video(video_path, monitor)
+            result = monitor.process_uploaded_video(video_path, output_path)
             
-            if result_path is None:
+            if result is None:
                 return jsonify({'error': '无法读取视频'}), 400
             
             return jsonify({
                 'success': True,
-                'video_url': f'/get_processed_video/{os.path.basename(result_path)}',
-                'download_url': f'/download_video/{os.path.basename(result_path)}',
-                'frames_analyzed': frames_analyzed,
-                'total_frames': total_frames,
-                'avg_people': float(people_data['avg']) if people_data['avg'] > 0 else 0,
-                'max_people': int(people_data['max']),
-                'min_people': int(people_data['min'])
+                'video_url': f'/get_processed_video/{os.path.basename(result["output_file"])}',
+                'download_url': f'/download_video/{os.path.basename(result["output_file"])}',
+                'frames_analyzed': result['total_frames'],
+                'total_frames': result['total_frames'],
+                'avg_people': float(result['avg_count']),
+                'max_people': int(result['max_count']),
+                'min_people': int(result['min_count'])
             })
         except Exception as e:
             return jsonify({'error': f'处理视频失败: {str(e)}'}), 400
     
     return jsonify({'error': '文件格式不支持'}), 400
 
-def process_video(video_path, monitor):
-    """处理视频文件，返回处理后的视频路径和统计数据"""
-    print(f"\n[视频处理开始] 文件: {video_path}", flush=True)
-    start_time = datetime.now()
-    
-    cap = cv2.VideoCapture(video_path)
-    
-    if not cap.isOpened():
-        print(f"[错误] 无法打开视频文件: {video_path}", flush=True)
-        return None, 0, 0, {'avg': 0, 'max': 0, 'min': 0}
-    
-    # 获取视频属性
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    print(f"[视频信息] 分辨率: {width}x{height}, FPS: {fps}, 总帧数: {total_frames}", flush=True)
-    
-    # 验证和调整参数
-    if fps <= 0:
-        print(f"[警告] FPS无效({fps})，设置为30", flush=True)
-        fps = 30
-    
-    if width <= 0 or height <= 0:
-        print(f"[错误] 无效的分辨率: {width}x{height}", flush=True)
-        cap.release()
-        return None, 0, 0, {'avg': 0, 'max': 0, 'min': 0}
-    
-    # 确保分辨率是偶数（某些编码器需要）
-    if width % 2 != 0:
-        width = width - 1
-    if height % 2 != 0:
-        height = height - 1
-    print(f"[调整后] 分辨率: {width}x{height}, FPS: {fps}", flush=True)
-    
-    if total_frames == 0:
-        print(f"[警告] 无法获取视频总帧数，尝试连续读取", flush=True)
-    
-    # 设置输出视频 - 保存到本地 processed_videos 目录
-    # 尝试多种编码格式
-    output_filename = f'result_video_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-    
-    print(f"[输出设置] 输出文件: {output_filename}", flush=True)
-    print(f"[输出路径] {output_path}", flush=True)
-    
-    # 使用MJPEG编码（更稳定）
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-    
-    if not out.isOpened():
-        print(f"[警告] MJPG编码失败，尝试XVID编码", flush=True)
-        output_filename = f'result_video_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-        
-        if not out.isOpened():
-            print(f"[警告] XVID编码失败，尝试FFV1编码", flush=True)
-            output_filename = f'result_video_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
-            output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-            fourcc = cv2.VideoWriter_fourcc(*'FFV1')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            if not out.isOpened():
-                print(f"[错误] 所有编码格式都失败了", flush=True)
-                cap.release()
-                return None, 0, 0, {'avg': 0, 'max': 0, 'min': 0}
-    
-    print(f"[编码器] 成功使用编码器创建写入器", flush=True)
-    
-    frame_count = 0
-    people_counts = []
-    analyzed_frames = 0
-    frame_skip = 5  # 每5帧处理一次，加快速度
-    write_errors = 0
-    
-    print(f"[处理设置] 每{frame_skip}帧检测一次", flush=True)
-    print(f"[开始处理] 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-    
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print(f"[读取结束] 视频读取完毕，总共读取{frame_count}帧", flush=True)
-            break
-        
-        # 调整帧大小到指定分辨率（以防原始分辨率有问题）
-        if frame.shape[1] != width or frame.shape[0] != height:
-            frame = cv2.resize(frame, (width, height))
-        
-        # 每frame_skip帧检测一次
-        if frame_count % frame_skip == 0:
-            try:
-                detections = monitor.detect_people(frame)
-                person_count, density = monitor.calculate_density(detections, frame.shape)
-                people_counts.append(person_count)
-                analyzed_frames += 1
-                
-                # 每50帧分析打印一次进度
-                if analyzed_frames % 50 == 0:
-                    progress_percent = (frame_count / max(total_frames, frame_count + 1)) * 100
-                    print(f"[处理进度] 帧数: {frame_count}/{total_frames if total_frames > 0 else '?'} ({progress_percent:.1f}%) - 已分析: {analyzed_frames} - 当前人数: {person_count}", flush=True)
-            except Exception as e:
-                print(f"[警告] 第{frame_count}帧检测失败: {str(e)}", flush=True)
-                person_count = people_counts[-1] if people_counts else 0
-                analyzed_frames += 1
-        else:
-            if people_counts:
-                person_count = people_counts[-1]
-            else:
-                person_count = 0
-            density = person_count / (frame.shape[0] * frame.shape[1] / 10000)
-            detections = []
-        
-        # 绘制信息
-        display_frame = monitor.draw_info(frame, person_count, density)
-        
-        # 绘制检测框
-        if len(detections) > 0:
-            for detection in detections:
-                x1, y1, x2, y2 = detection.xyxy[0]
-                cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-        
-        # 尝试写入帧（注意：某些编码器的write()可能返回False但实际已写入）
-        success = out.write(display_frame)
-        if not success:
-            write_errors += 1
-            if write_errors == 1:
-                print(f"[注意] 帧写入返回False（可能是OpenCV问题，但文件可能正确保存）", flush=True)
-        
-        frame_count += 1
-    
-    cap.release()
-    out.release()
-    
-    print(f"[释放资源] 视频捕获和写入器已释放", flush=True)
-    
-    # 检查输出文件是否存在并有内容
-    if os.path.exists(output_path):
-        file_size = os.path.getsize(output_path)
-        print(f"[成功] 输出文件大小: {file_size} 字节", flush=True)
-    else:
-        print(f"[错误] 输出文件未创建: {output_path}", flush=True)
-    
-    if write_errors > 0:
-        print(f"[信息] write()函数返回失败{write_errors}次（这通常不是真正的错误）", flush=True)
-    
-    # 计算统计数据
-    if people_counts:
-        stats = {
-            'avg': sum(people_counts) / len(people_counts),
-            'max': max(people_counts),
-            'min': min(people_counts)
-        }
-    else:
-        stats = {'avg': 0, 'max': 0, 'min': 0}
-    
-    elapsed_time = datetime.now() - start_time
-    print(f"[处理完成] 耗时: {elapsed_time.total_seconds():.2f}秒", flush=True)
-    print(f"[统计结果] 平均人数: {stats['avg']:.2f}, 最大: {stats['max']}, 最小: {stats['min']}", flush=True)
-    print(f"[本地文件] {output_path}", flush=True)
-    
-    return output_path, analyzed_frames, total_frames, stats
 
 if __name__ == '__main__':
     print("=" * 50)

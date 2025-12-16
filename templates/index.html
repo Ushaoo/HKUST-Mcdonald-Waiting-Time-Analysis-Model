@@ -83,6 +83,10 @@
         .upload-video-btn {
             background: linear-gradient(135deg, #00bfff 0%, #0099cc 100%);
         }
+
+        .unified-upload-btn {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+        }
         
         .icon {
             font-size: 40px;
@@ -101,22 +105,16 @@
         <p class="subtitle">选择工作模式</p>
         
         <div class="modes">
-            <a href="/mode/video" class="mode-btn video-btn">
+            <a href="/mode/video_optimized" class="mode-btn video-btn">
                 <span class="icon">📹</span>
                 <span>实时视频</span>
-                <span class="description">从摄像头检测实时视频</span>
-            </a>
-            
-            <a href="/mode/upload" class="mode-btn upload-btn">
-                <span class="icon">📸</span>
-                <span>上传照片</span>
-                <span class="description">上传照片进行检测</span>
+                <span class="description">从摄像头检测实时视频 (客户端优化)</span>
             </a>
 
-            <a href="/mode/upload_video" class="mode-btn upload-video-btn">
-                <span class="icon">🎬</span>
-                <span>上传视频</span>
-                <span class="description">上传视频进行检测</span>
+            <a href="/mode/upload_unified" class="mode-btn unified-upload-btn">
+                <span class="icon">📁</span>
+                <span>文件检测</span>
+                <span class="description">上传照片或视频自动检测</span>
             </a>
         </div>
     </div>
