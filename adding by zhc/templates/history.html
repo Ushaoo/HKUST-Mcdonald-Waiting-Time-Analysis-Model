@@ -2,35 +2,36 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>历史数据图表</title>
+  <title>历史数据</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="/static/chart.js"></script>
 </head>
 
 <body>
   <header class="header">
-    <div class="logo">🍔</div>
-    <h1>历史数据视图</h1>
-    <a href="/" class="toggle-btn">返回实时状态</a>
+    <h1>历史数据</h1>
+    <a href="/" class="toggle-btn">返回首页</a>
   </header>
 
-  <main class="chart-container">
-    <section>
-      <h2>过去7天人流量</h2>
+  <main class="card-group">
+
+    <div class="card">
+      <h2>每周人流量趋势</h2>
       <canvas id="weeklyFlowChart"></canvas>
-    </section>
+    </div>
 
-    <section>
-      <h2>每日高峰时段</h2>
+    <div class="card">
+      <h2>高峰时段统计</h2>
       <canvas id="peakTimeChart"></canvas>
-    </section>
+    </div>
 
-    <section>
-      <h2>平均排队时间</h2>
+    <div class="card">
+      <h2>热力图（时段 × 星期）</h2>
       <canvas id="heatmapChart"></canvas>
-    </section>
+    </div>
+
   </main>
 
-  <script src="/static/chart.js"></script>
 </body>
 </html>

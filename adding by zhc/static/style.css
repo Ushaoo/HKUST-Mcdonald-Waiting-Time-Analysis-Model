@@ -9,24 +9,25 @@ body {
   background-color: #FFF7E0;
   font-family: 'Noto Sans', sans-serif;
   margin: 0;
+  color: #C8A951;   /* ✅ 全局字体改为土黄色 */
 }
 
+/* ✅ 顶部栏：标题居中，按钮固定在右侧 */
 .header {
   background-color: #DA291C;
-  color: white;
+  color: white;     /* ✅ 顶部标题保持白色 */
   padding: 20px 40px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-}
-
-.logo {
-  font-size: 32px;
+  position: relative;
 }
 
 .toggle-btn {
+  position: absolute;
+  right: 40px;
   background-color: #FFC72C;
-  color: #DA291C;
+  color: #DA291C;   /* ✅ 按钮文字保持红色 */
   padding: 10px 20px;
   border-radius: 20px;
   text-decoration: none;
@@ -58,7 +59,7 @@ body {
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.1);
-  text-align: center;   /* ✅ 所有卡片文字居中 */
+  text-align: center;
 }
 
 /* ✅ 视频卡片宽度与上排两卡片总宽度完全一致 */
@@ -82,7 +83,7 @@ body {
   object-fit: cover;
 }
 
-/* ✅ 数字居中且突出 */
+/* ✅ 数字保持红色 */
 .value {
   font-size: 28px;
   color: #DA291C;
