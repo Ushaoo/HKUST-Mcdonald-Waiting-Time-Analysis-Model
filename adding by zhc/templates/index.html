@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>取餐时间预估</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+  <header class="header">
+    <div class="logo">🍔</div>
+    <h1>取餐时间预估</h1>
+    <a href="/history" class="toggle-btn">查看历史数据</a>
+  </header>
+
+  <main class="card-container three-cards">
+
+    <div class="card">
+      <h2>预计取餐时间</h2>
+      <p class="value">{{ data.pickup_time }}</p>
+      <p class="desc">根据当前人流量估算</p>
+    </div>
+
+    <div class="card">
+      <h2>当前人流量</h2>
+      <p class="value">{{ data.crowd_level }}</p>
+      <p class="desc">{{ data.crowd_range }}</p>
+    </div>
+
+    <!-- ✅ 新增：摄像头实时画面 -->
+    <div class="card video-card">
+      <h2>实时排队画面</h2>
+      <div class="video-wrapper">
+        <img src="/video_feed" class="video-frame" alt="camera stream">
+      </div>
+      <p class="desc">摄像头实时画面，用于辅助估算</p>
+    </div>
+
+  </main>
+
+</body>
+</html>
