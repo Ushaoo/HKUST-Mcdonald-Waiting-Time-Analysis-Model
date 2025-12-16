@@ -1,70 +1,89 @@
 body {
-background-color: #FFF7E0;
-font-family: 'Noto Sans', sans-serif;
-margin: 0;
+  background-color: #FFF7E0;
+  font-family: 'Noto Sans', sans-serif;
+  margin: 0;
 }
+
 .header {
-background-color: #DA291C;
-color: white;
-padding: 20px 40px;
-display: flex;
-justify-content: space-between;
-align-items: center;
+  background-color: #DA291C;
+  color: white;
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
 .logo {
-font-size: 32px;
+  font-size: 32px;
 }
+
 .toggle-btn {
-background-color: #FFC72C;
-color: #DA291C;
-padding: 10px 20px;
-border-radius: 20px;
-text-decoration: none;
-font-weight: bold;
+  background-color: #FFC72C;
+  color: #DA291C;
+  padding: 10px 20px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
 }
-/* ✅ 统一容器：三个卡片视觉上组成一个横向矩形（并排排列） /
+
+/* ✅ 统一容器：三个卡片视觉上组成一个矩形 */
 .card-group {
-width: 1200px;       / ✅ 增大整体宽度以容纳三个卡片横排 /
-margin: 40px auto;
-display: flex;       / 新增：改为 flex 布局，使三个卡片横向排列 /
-justify-content: space-between; / ✅ 均匀分布或根据需要调整 /
-gap: 16px;           / 新增：卡片间隙 */
+  width: 650px;
+  margin: 40px auto;
 }
-/* ✅ 移除原 card-row，三个卡片直接作为 flex 子项 /
-.card-left, .card-right, .video-card {
-flex: 1;             / ✅ 让每个卡片等宽或根据内容调整（可自定义宽度） /
-min-width: 300px;    / ✅ 最小宽度，确保不挤压 */
+
+/* ✅ 第一行：两个卡片并排，使用 gap 控制间距 */
+.card-row {
+  display: flex;
+  gap: 10px;   /* ✅ 固定间距，避免 space-between 拉开 */
+  margin-bottom: 16px;
 }
-/* ✅ 视频卡片调整为竖向适配横排（移除宽屏约束，改为方形或自适应） */
-.video-card {
-background-color: white;
-border-radius: 16px;
-padding: 20px;
-box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+
+/* ✅ 左卡片（预计取餐时间） */
+.card-left {
+  width: 320px;   /* ✅ 与右卡片合计刚好 650px */
 }
-/* ✅ 视频画面调整为自适应（非强制 16:9，以适合横排） /
-.video-wrapper-wide {
-width: 100%;
-aspect-ratio: auto;  / 修改：移除固定宽高比，让视频自适应卡片 */
-background-color: #000;
-border-radius: 12px;
-overflow: hidden;
-margin-top: 12px;
+
+/* ✅ 右卡片（当前人流量） */
+.card-right {
+  width: 320px;   /* ✅ 右边缘与视频卡片齐平 */
 }
-.video-frame {
-width: 100%;
-height: auto;        /* 修改：高度自适应 */
-object-fit: cover;
-}
+
 /* ✅ 卡片通用样式 */
 .card {
-background-color: white;
-border-radius: 16px;
-padding: 20px;
-box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  background-color: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
 }
+
+/* ✅ 视频卡片宽度与上方两卡片总宽度一致 */
+.video-card {
+  width: 100%;    /* ✅ 自动等于 650px，与上方两卡片对齐 */
+  background-color: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+
+/* ✅ 视频画面占据卡片大部分空间（横屏 16:9） */
+.video-wrapper-wide {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.video-frame {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .value {
-font-size: 28px;
-color: #DA291C;
-font-weight: bold;
+  font-size: 28px;
+  color: #DA291C;
+  font-weight: bold;
 }

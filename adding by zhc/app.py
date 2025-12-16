@@ -1,10 +1,9 @@
 from flask import Flask, render_template, jsonify, Response
-from data.mock_data import get_realtime_data, get_history_data
+from data.mock_data import get_realtime_data
 import cv2
 
 app = Flask(__name__)
 
-# 打开摄像头（0 为默认摄像头）
 camera = cv2.VideoCapture(0)
 
 def gen_frames():
@@ -24,22 +23,6 @@ def gen_frames():
 def realtime_view():
     data = get_realtime_data()
     return render_template('index.html', data=data)
-
-
-@app.route('/history')
-def history_view():
-    data = get_history_data()
-    return render_template('history.html', data=data)
-
-
-@app.route('/api/realtime')
-def api_realtime():
-    return jsonify(get_realtime_data())
-
-
-@app.route('/api/history')
-def api_history():
-    return jsonify(get_history_data())
 
 
 @app.route('/video_feed')
