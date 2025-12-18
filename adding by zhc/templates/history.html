@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>历史数据</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="/static/chart.js"></script>
+</head>
+
+<body>
+  <header class="header">
+    <h1>历史数据</h1>
+    <a href="/" class="toggle-btn">返回首页</a>
+  </header>
+
+  <main class="card-group">
+
+    <div class="card">
+      <h2>每周人流量趋势</h2>
+      <canvas id="weeklyFlowChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>高峰时段统计</h2>
+      <canvas id="peakTimeChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>热力图（时段 × 星期）</h2>
+      <canvas id="heatmapChart"></canvas>
+    </div>
+
+  </main>
+
+</body>
+</html>
