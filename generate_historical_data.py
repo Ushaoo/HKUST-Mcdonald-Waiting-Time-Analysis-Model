@@ -28,51 +28,51 @@ def generate_historical_data():
     start_date = datetime(2025, 12, 1, 7, 0, 0)
     end_date = datetime(2025, 12, 14, 23, 55, 0)
     
-    # 定义人流分布 (按小时)
-    # 早上：7-9点 (小peak)
-    # 中午：11-13点 (大peak) 
-    # 傍晚：17-19点 (中peak)
+    # Define crowd distribution (by hour)
+    # Morning: 7-9 am (small peak)
+    # Lunch: 11-1 pm (big peak) 
+    # Evening: 5-7 pm (medium peak)
     
     def get_base_people_count(hour, weekday):
         """
-        根据小时和day of week几获取基础人流量
+        Get base people count based on hour and weekday
         weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
         """
         
-        # 基础time因子（降低正态分布的标准差，使波动更平缓）
-        if 7 <= hour < 8:  # 早上7-8点
-            base = 35 + np.random.normal(0, 2)  # 降低波动
-        elif 8 <= hour < 9:  # 早上8-9点 (增加人流)
-            base = 50 + np.random.normal(0, 2.5)  # 降低波动
-        elif 9 <= hour < 11:  # 上午
+        # Base time factor (reduced normal distribution standard deviation for smoother fluctuation)
+        if 7 <= hour < 8:  # 7-8 am
+            base = 35 + np.random.normal(0, 2)
+        elif 8 <= hour < 9:  # 8-9 am (increased flow)
+            base = 50 + np.random.normal(0, 2.5)
+        elif 9 <= hour < 11:  # Morning
             base = 20 + np.random.normal(0, 1)
-        elif 11 <= hour < 13:  # 中午11-13点 (高峰)
-            base = 85 + np.random.normal(0, 4)  # 降低波动
-        elif 13 <= hour < 17:  # 下午
+        elif 11 <= hour < 13:  # Lunch 11am-1pm (peak)
+            base = 85 + np.random.normal(0, 4)
+        elif 13 <= hour < 17:  # Afternoon
             base = 22 + np.random.normal(0, 1.5)
-        elif 17 <= hour < 19:  # 傍晚17-19点 (中peak)
-            base = 65 + np.random.normal(0, 3)  # 降低波动
-        elif 19 <= hour < 22:  # 晚上
+        elif 17 <= hour < 19:  # Evening 5-7pm (medium peak)
+            base = 65 + np.random.normal(0, 3)
+        elif 19 <= hour < 22:  # Night
             base = 28 + np.random.normal(0, 1.5)
-        else:  # 22点后
+        else:  # After 10pm
             base = 10 + np.random.normal(0, 0.5)
         
-        # weekendpeople相对较少（周六、周日）
-        if weekday >= 5:  # 周六、周日
+        # Weekend traffic is relatively lower (Saturday, Sunday)
+        if weekday >= 5:  # Saturday, Sunday
             base = base * 0.65
-        # 周三、周四相对较多
-        elif weekday in [2, 3]:  # 周三、周四
+        # Wednesday, Thursday has more traffic
+        elif weekday in [2, 3]:  # Wednesday, Thursday
             base = base * 1.18
-        # 周一、周二、周五为正常
+        # Monday, Tuesday, Friday are normal
         
         return max(int(base), 0)
     
-    # Generatedata
+    # Generate data
     current_time = start_date
     record_count = 0
     
     print("=" * 60)
-    print("startGeneratehistorical人流data...")
+    print("Starting historical crowd data generation...")
     print(f"Time range: {start_date.strftime('%Y-%m-%d %H:%M')} ~ {end_date.strftime('%Y-%m-%d %H:%M')}")
     print("=" * 60)
     
@@ -80,50 +80,50 @@ def generate_historical_data():
         hour = current_time.hour
         weekday = current_time.weekday()
         
-        # 只在businesstimewithinGeneratedata (7:00 - 23:55)
-        if 7 <= hour < 24:
+        # Only generate data during business hours (7:00 - 23:55)
+        if 7 <= hour <= 23:
             person_count = get_base_people_count(hour, weekday)
             
-            # 随机波动 ±5%（减少波动，使曲线更平滑）
+            # Random fluctuation ±5% (reduced fluctuation for smoother curves)
             person_count = int(person_count * np.random.uniform(0.95, 1.05))
             person_count = max(person_count, 0)
             
-            # add到data库
+            # Add to database
             try:
                 db.add_record(current_time, person_count, weekday)
                 record_count += 1
                 
                 if record_count % 500 == 0:
-                    print(f"✓ 已Generate {record_count} 条records | time: {current_time.strftime('%Y-%m-%d %H:%M')} | people: {person_count}")
+                    print(f"✓ Generated {record_count:5d} records | Time: {current_time.strftime('%Y-%m-%d %H:%M')} | People: {person_count:3d}")
             
             except Exception as e:
-                print(f"✗ addrecordsfailed: {e}")
+                print(f"✗ Add record failed: {e}")
         
-        # 每1minute推进一次（更实际的datainterval）
+        # Advance by 1 minute (more realistic data interval)
         current_time += timedelta(minutes=1)
     
     print("=" * 60)
-    print(f"✓ dataGeneratecomplete！")
-    print(f"  - totalrecords数: {record_count}")
-    print(f"  - data库location: {DB_PATH}")
-    print(f"  - data库size: {db.get_database_size():.2f} MB")
+    print("✓ Data generation complete!")
+    print(f"  - Total records: {record_count}")
+    print(f"  - Database location: {DB_PATH}")
+    print(f"  - Database size: {db.get_database_size():.2f} MB")
     print("=" * 60)
     
-    # 打印statistics信息
-    print("\n各day of week的datastatistics:")
+    # Print statistics
+    print("\nStatistics by day of week:")
     print("-" * 60)
     
-    weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
     for weekday in range(7):
         stats = db.get_weekday_stats(weekday)
         
         if stats and stats['record_count'] > 0:
             print(f"{weekday_names[weekday]}")
-            print(f"  records数: {stats['record_count']}")
-            print(f"  average: {stats['avg_people']:.1f} 人")
-            print(f"  peak: {stats['max_people']} 人")
-            print(f"  minimum: {stats['min_people']} 人")
+            print(f"  Records: {stats['record_count']}")
+            print(f"  Average: {stats['avg_people']:.1f} people")
+            print(f"  Peak: {stats['max_people']} people")
+            print(f"  Minimum: {stats['min_people']} people")
             print()
 
 

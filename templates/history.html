@@ -73,7 +73,6 @@
       border-bottom: 2px solid #FFE8D0;
     }
 
-    /* 选择器行 */
     .selector-row {
       margin-bottom: 25px;
     }
@@ -154,14 +153,12 @@
       font-weight: 600;
     }
 
-    /* 图表 */
     .chart-container {
       position: relative;
       height: 350px;
       margin-top: 20px;
     }
 
-    /* 响应式 */
     @media (max-width: 768px) {
       .header {
         padding: 15px 20px;
@@ -290,15 +287,15 @@
           return i;
         }
       }
-      return 0; // 默认第一个时段
+      return 0; 
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-      // 设置默认时间段为当前时段
+        // Set default time slot to current time slot
       currentSlot = getCurrentTimeSlot();
       
-      // 设置星期几按钮事件
+      //  Set weekday button events  
       document.querySelectorAll('[data-weekday]').forEach(btn => {
         btn.addEventListener('click', function() {
           document.querySelectorAll('[data-weekday]').forEach(b => b.classList.remove('active'));
@@ -308,7 +305,7 @@
         });
       });
 
-      // 设置时间段按钮事件
+      //  Set time slot button events
       document.querySelectorAll('[data-slot]').forEach(btn => {
         btn.addEventListener('click', function() {
           document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
@@ -318,7 +315,7 @@
         });
       });
 
-      // 设置默认选中的时间段按钮（先移除所有active，再添加当前的）
+      // Set default selected time slot button (remove all active first, then add current)
       document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
       document.querySelector(`[data-slot="${currentSlot}"]`).classList.add('active');
       
@@ -352,7 +349,7 @@
           const avgPeople = slotCount > 0 ? Math.round(slotTotal / slotCount) : 0;
           document.getElementById('avgPeople').textContent = avgPeople;
 
-          // 更新图表
+          // Update chart
           updateChart(data);
         })
         .catch(error => {
