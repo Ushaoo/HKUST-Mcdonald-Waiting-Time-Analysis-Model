@@ -1,45 +1,45 @@
 """
-数据统计模块 - 获取实时和历史统计数据
-这个模块从全局的monitor对象获取数据，并格式化为API响应格式
+Data statistics module - fetches real-time and historical statistics
+This module gets data from the global monitor object and formats it as API response
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
-# 全局monitor对象（在app.py中初始化）
+# Global monitor object (initialized in app.py)
 monitor = None
 
 def set_monitor(m):
-    """设置全局monitor对象"""
+    """Set global monitor object"""
     global monitor
     monitor = m
 
 def get_realtime_data():
-    """获取实时统计数据
+    """Get real-time statistics
     
     Returns:
-        dict: 包含预计取餐时间、人流量等级、人流量范围的数据
+        dict: Data containing estimated pickup time, crowd level, and crowd range
     """
     if monitor is None:
         return {
-            "pickup_time": "8-12分钟",
-            "crowd_level": "中等",
-            "crowd_range": "约35-50人"
+            "pickup_time": "8-12 minutes",
+            "crowd_level": "Medium",
+            "crowd_range": "~35-50 people"
         }
     
     return monitor.get_realtime_stats()
 
 def get_history_data():
-    """获取历史统计数据
+    """Get historical statistics
     
     Returns:
-        dict: 包含周人流量、高峰时段、热力图的数据
+        dict: Data containing weekly flow, peak times, and heatmap
     """
     if monitor is None:
         return {
             "weekly_flow": [30, 45, 60, 50, 70, 80, 65],
-            "peak_times": {"早上": 20, "中午": 60, "晚上": 40},
+            "peak_times": {"Morning": 20, "Lunch": 60, "Evening": 40},
             "heatmap": [
                 [10, 20, 30, 40],
                 [15, 25, 35, 45],

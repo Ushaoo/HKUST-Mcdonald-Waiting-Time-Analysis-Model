@@ -1,10 +1,10 @@
 """
-数据库初始化和管理模块
-设计用于存储人群监测数据的SQLite数据库
+Database initialization and management module
+SQLite database designed for storing crowd monitoring data
 
-表结构说明：
-- crowd_records: 实时人流记录（每条记录包含：人数、时间、星期几）
-  极简设计，只记录必要的信息
+Table structure description：
+- crowd_records: Real-time crowd records (each record contains: person count, time, day of week)
+  Minimalist design, only recording necessary information
 """
 
 import sqlite3
@@ -17,25 +17,25 @@ DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, 'crowd_data.db')
 
 class CrowdDatabase:
-    """人群数据数据库管理类"""
+    """Crowd data database management class"""
     
     def __init__(self, db_path=DB_PATH):
-        """初始化数据库连接"""
+        """Initialize database connection"""
         self.db_path = db_path
         self.init_database()
     
     def get_connection(self):
-        """获取数据库连接"""
+        """Get database connection"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
     
     def init_database(self):
-        """初始化数据库表"""
+        """Initialize database tables"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # 创建人群记录表（极简设计）
+        # Create crowd records table (minimalist design)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS crowd_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +46,7 @@ class CrowdDatabase:
             )
         ''')
         
-        # 创建索引以加快查询
+        # Create index to speed up queries
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_timestamp ON crowd_records(timestamp)
         ''')
@@ -88,7 +88,7 @@ class CrowdDatabase:
             conn.close()
     
     def get_records_by_weekday(self, weekday):
-        """获取指定星期几的所有记录"""
+        """Get all records for specified day of week"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -163,7 +163,7 @@ class CrowdDatabase:
         print("[⚠️] 所有数据已清空")
     
     def get_database_size(self):
-        """获取数据库大小"""
+        """Get database size"""
         if os.path.exists(self.db_path):
             size = os.path.getsize(self.db_path)
             return size / 1024 / 1024  # 转换为MB

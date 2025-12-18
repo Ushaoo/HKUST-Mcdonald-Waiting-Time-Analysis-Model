@@ -1,4 +1,4 @@
-/* 全局：避免 padding 影响卡片宽度计算 */
+/* Global: prevent padding from affecting card width calculation */
 *,
 *::before,
 *::after {
@@ -9,13 +9,13 @@ body {
   background-color: #FFF7E0;
   font-family: 'Noto Sans', sans-serif;
   margin: 0;
-  color: #C8A951;   /* ✅ 全局字体改为土黄色 */
+  color: #C8A951;   /* Global font color set to tan */
 }
 
-/* ✅ 顶部栏：标题居中，按钮固定在右侧 */
+/* Header: title centered, button fixed on right */
 .header {
   background-color: #DA291C;
-  color: white;     /* ✅ 顶部标题保持白色 */
+  color: white;     /* Header title remains white */
   padding: 20px 40px;
   display: flex;
   justify-content: center;
@@ -27,33 +27,33 @@ body {
   position: absolute;
   right: 40px;
   background-color: #FFC72C;
-  color: #DA291C;   /* ✅ 按钮文字保持红色 */
+  color: #DA291C;   /* Button text remains red */
   padding: 10px 20px;
   border-radius: 20px;
   text-decoration: none;
   font-weight: bold;
 }
 
-/* ✅ 统一容器：三个卡片组成一个矩形 */
+/* Unified container: three cards form a rectangle */
 .card-group {
   max-width: 650px;
   margin: 40px auto;
 }
 
-/* ✅ 第一行：两个卡片并排 */
+/* First row: two cards side by side */
 .card-row {
   display: flex;
   gap: 10px;
   margin-bottom: 16px;
 }
 
-/* ✅ 左右卡片自动平分宽度 */
+/* Left and right cards automatically split width */
 .card-left,
 .card-right {
   flex: 1;
 }
 
-/* ✅ 卡片通用样式（文字居中） */
+/* Card common styles (text centered) */
 .card {
   background-color: white;
   border-radius: 16px;
@@ -62,12 +62,12 @@ body {
   text-align: center;
 }
 
-/* ✅ 视频卡片宽度与上排两卡片总宽度完全一致 */
+/* Video card width matches total width of two cards above */
 .video-card {
   width: 100%;
 }
 
-/* ✅ 视频画面（16:9） */
+/* Video frame (16:9) */
 .video-wrapper-wide {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -83,7 +83,7 @@ body {
   object-fit: cover;
 }
 
-/* ✅ 数字保持红色 */
+/* Numbers remain red */
 .value {
   font-size: 28px;
   color: #DA291C;

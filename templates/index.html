@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>取餐时间预估</title>
+  <title>Estimated Wait Time</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
   </style>
@@ -10,30 +10,28 @@
 
 <body>
   <header class="header">
-    <h1>取餐时间预估</h1>
-    <a href="/history" class="toggle-btn">查看历史数据</a>
+    <h1>Estimated Wait Time</h1>
+    <a href="/history" class="toggle-btn">View Historical Data</a>
   </header>
 
   <main>
 
     <div class="card-group">
 
-      <!-- ✅ 第一行：两个卡片并排 -->
       <div class="card-row">
         <div class="card card-left">
-          <h2>预计取餐时间</h2>
+          <h2>Estimated Wait Time</h2>
           <p class="value" id="pickup-time">{{ data.pickup_time }}</p>
         </div>
 
         <div class="card card-right">
-          <h2>当前人流量</h2>
+          <h2>Current Crowd Level</h2>
           <p class="value" id="crowd-level">{{ data.crowd_level }}</p>
         </div>
       </div>
 
-      <!-- ✅ 第二行：视频卡片宽度与上方两卡片完全对齐 -->
       <div class="card video-card">
-        <h2>实时排队画面</h2>
+        <h2>Live Queue View</h2>
 
         <div class="video-wrapper-wide">
           <img src="/video_feed" class="video-frame" alt="camera stream" id="video-feed">
@@ -48,7 +46,6 @@
   </main>
 
   <script>
-    // 每2秒更新实时数据
     function updateRealtimeData() {
       fetch('/api/realtime')
         .then(res => res.json())
@@ -57,15 +54,12 @@
           document.getElementById('crowd-level').textContent = data.crowd_level;
           document.getElementById('crowd-range').textContent = data.crowd_range;
         })
-        .catch(err => console.error('更新数据失败:', err));
+        .catch(err => console.error('Failed to update data:', err));
     }
 
-    // 初始化和定期更新
     document.addEventListener('DOMContentLoaded', function() {
-      // 首次加载后立即更新
       updateRealtimeData();
       
-      // 每2秒更新实时数据
       setInterval(updateRealtimeData, 2000);
     });
   </script>

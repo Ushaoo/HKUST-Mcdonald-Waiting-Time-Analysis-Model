@@ -1,4 +1,4 @@
-// 加载历史数据并渲染图表
+// Load historical data and render charts
 fetch('/api/history')
   .then(res => res.json())
   .then(data => {
@@ -6,15 +6,15 @@ fetch('/api/history')
     renderPeakTimes(data.peak_times);
     renderHeatmap(data.heatmap);
   })
-  .catch(err => console.error('加载数据失败:', err));
+  .catch(err => console.error('Failed to load data:', err));
 
 function renderWeeklyFlow(values) {
   new Chart(document.getElementById('weeklyFlowChart'), {
     type: 'line',
     data: {
-      labels: ['周一','周二','周三','周四','周五','周六','周日'],
+      labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
       datasets: [{
-        label: '人流量',
+        label: 'Crowd Flow',
         data: values,
         borderColor: '#FFC72C',
         backgroundColor: 'rgba(255,199,44,0.2)',
@@ -60,7 +60,7 @@ function renderPeakTimes(times) {
     data: {
       labels: Object.keys(times),
       datasets: [{
-        label: '高峰人数',
+        label: 'Peak People Count',
         data: Object.values(times),
         backgroundColor: '#DA291C'
       }]
@@ -105,7 +105,7 @@ function renderHeatmap(matrix) {
     data: {
       labels: ['10:00','14:00','18:00','22:00'],
       datasets: matrix.map((row, i) => ({
-        label: `周${['一','二','三'][i]}`,
+        label: `Day ${['1','2','3'][i]}`,
         data: row,
         backgroundColor: ['#FFF2B0','#FFD85C','#FFC72C','#DA291C']
       }))

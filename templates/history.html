@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>历史数据 - 麦当劳</title>
+  <title>Historical Data - McDonald's</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -208,30 +208,30 @@
 
 <body>
   <header class="header">
-    <h1>历史数据</h1>
-    <a href="/" class="toggle-btn">返回首页</a>
+    <h1>Historical Data</h1>
+    <a href="/" class="toggle-btn">Back Home</a>
   </header>
 
   <main class="card-group">
     
     <div class="card">
-      <h2>数据查询</h2>
+      <h2>Search Filters</h2>
       
       <div class="selector-row">
-        <label>星期几</label>
+        <label>Day of Week</label>
         <div class="buttons-row" id="weekday-buttons">
-          <button class="btn active" data-weekday="0">周一</button>
-          <button class="btn" data-weekday="1">周二</button>
-          <button class="btn" data-weekday="2">周三</button>
-          <button class="btn" data-weekday="3">周四</button>
-          <button class="btn" data-weekday="4">周五</button>
-          <button class="btn" data-weekday="5">周六</button>
-          <button class="btn" data-weekday="6">周日</button>
+          <button class="btn active" data-weekday="0">Mon</button>
+          <button class="btn" data-weekday="1">Tue</button>
+          <button class="btn" data-weekday="2">Wed</button>
+          <button class="btn" data-weekday="3">Thu</button>
+          <button class="btn" data-weekday="4">Fri</button>
+          <button class="btn" data-weekday="5">Sat</button>
+          <button class="btn" data-weekday="6">Sun</button>
         </div>
       </div>
 
       <div class="selector-row">
-        <label>时间段</label>
+        <label>Time Period</label>
         <div class="buttons-row" id="slot-buttons">
           <button class="btn time-slot-btn active" data-slot="0">07-09</button>
           <button class="btn time-slot-btn" data-slot="1">09-11</button>
@@ -245,16 +245,16 @@
       </div>
 
       <div class="stats-box">
-        <div class="label">该时间段平均人数</div>
+        <div class="label">Average People Count</div>
         <div>
           <span class="value" id="avgPeople">--</span>
-          <span class="unit">人</span>
+          <span class="unit">people</span>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>人数变化</h2>
+      <h2>Crowd Trend</h2>
       <div class="chart-container">
         <canvas id="timeSeriesChart"></canvas>
       </div>
@@ -263,23 +263,23 @@
   </main>
 
   <script>
-    const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const timeSlots = [
-      { name: '早餐', range: [7, 9] },
-      { name: '上午', range: [9, 11] },
-      { name: '午餐', range: [11, 13] },
-      { name: '下午', range: [13, 15] },
-      { name: '下午', range: [15, 17] },
-      { name: '晚餐', range: [17, 19] },
-      { name: '晚上', range: [19, 21] },
-      { name: '深夜', range: [21, 24] }
+      { name: 'Breakfast', range: [7, 9] },
+      { name: 'Morning', range: [9, 11] },
+      { name: 'Lunch', range: [11, 13] },
+      { name: 'Afternoon', range: [13, 15] },
+      { name: 'Late Afternoon', range: [15, 17] },
+      { name: 'Dinner', range: [17, 19] },
+      { name: 'Evening', range: [19, 21] },
+      { name: 'Night', range: [21, 24] }
     ];
 
     let currentWeekday = 0;
     let currentSlot = 0;
     let chart = null;
 
-    // 获取当前时间段
+    // Get current time period
     function getCurrentTimeSlot() {
       const now = new Date();
       const hour = now.getHours();
@@ -293,7 +293,7 @@
       return 0; // 默认第一个时段
     }
 
-    // 初始化
+    // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       // 设置默认时间段为当前时段
       currentSlot = getCurrentTimeSlot();
@@ -322,7 +322,7 @@
       document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
       document.querySelector(`[data-slot="${currentSlot}"]`).classList.add('active');
       
-      // 加载初始数据
+      // Load initial data
       loadData();
     });
 
@@ -332,7 +332,7 @@
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          // 计算当前时间段的平均人数
+          // Calculate average people count for current time period
           const slot = timeSlots[currentSlot];
           const [startHour, endHour] = slot.range;
 
@@ -357,29 +357,29 @@
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('无法加载数据');
+          alert('Unable to load data');
         });
     }
 
     function updateChart(data) {
       const ctx = document.getElementById('timeSeriesChart').getContext('2d');
 
-      // 提取时间和人数
+      // Extract time and person counts
       const labels = data.data.map(d => d.time);
       const personCounts = data.data.map(d => d.person_count);
 
-      // 销毁旧图表
+      // Destroy previous chart
       if (chart) {
         chart.destroy();
       }
 
-      // 创建新图表 - 红色简约配色，丝滑曲线
+      // Create new chart with smooth red theme
       chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
           datasets: [{
-            label: `${weekdayNames[currentWeekday]} - 人数`,
+            label: `${weekdayNames[currentWeekday]} - People Count`,
             data: personCounts,
             borderColor: '#DA291C',
             backgroundColor: 'rgba(218, 41, 28, 0.08)',
@@ -413,7 +413,7 @@
               bodyFont: { size: 12 },
               callbacks: {
                 label: function(context) {
-                  return `人数: ${context.parsed.y} 人`;
+                  return `People: ${context.parsed.y}`;
                 }
               }
             }

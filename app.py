@@ -10,17 +10,17 @@ import os
 from werkzeug.utils import secure_filename
 from pathlib import Path
 
-# 导入数据库模块
+# Import Database module
 from database import get_db, init_db
 
-# 导入配置
+# Import configuration
 try:
     from config import (
         FLASK_CONFIG, CAMERA_CONFIG, MODEL_CONFIG, 
         STATS_CONFIG, SECURITY_CONFIG, get_startup_info, print_routes_info
     )
 except ImportError:
-    print("[警告] 无法导入config.py，使用默认配置")
+    print("[WARNING] Unable to import config.py, using default configuration")
     FLASK_CONFIG = {'DEBUG': False, 'HOST': '0.0.0.0', 'PORT': 5000, 'THREADED': True}
     CAMERA_CONFIG = {'enabled': True, 'camera_id': 0, 'width': 1280, 'height': 720}
     MODEL_CONFIG = {'enabled': True, 'model_name': 'yolov8n.pt', 'confidence_threshold': 0.2}
@@ -29,7 +29,7 @@ except ImportError:
 
 app = Flask(__name__)
 
-# 配置文件夹
+# Configure folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 OUTPUT_FOLDER = os.path.join(BASE_DIR, 'processed_videos')
@@ -46,21 +46,21 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = SECURITY_CONFIG.get('max_file_size', 500 * 1024 * 1024)
 
-# 重新配置模板和静态文件夹
+# Reconfigure template and static folders
 app.template_folder = TEMPLATE_FOLDER
 app.static_folder = STATIC_FOLDER
 
-# ==================== 数据平滑处理函数 ====================
+# ==================== Data Smoothing Function ====================
 def smooth_data(data, window_size=5):
     """
-    使用移动平均法平滑数据曲线
+    Simple moving average smoothing for data
     
     Args:
-        data: 原始数据列表
-        window_size: 移动窗口大小（默认5，表示前后各2个数据点的平均）
+        data: Original data list
+        window_size: Moving window size (default 5, meaning average of 2 data points before and after)
     
     Returns:
-        平滑后的数据列表
+        Smoothed data list
     """
     if len(data) < window_size:
         return data
@@ -69,36 +69,36 @@ def smooth_data(data, window_size=5):
     half_window = window_size // 2
     
     for i in range(len(data)):
-        # 确定窗口范围
+        # Determine window range
         start = max(0, i - half_window)
         end = min(len(data), i + half_window + 1)
         
-        # 计算窗口内的平均值
+        # Calculate average within the window
         window_avg = sum(data[start:end]) / (end - start)
         smoothed.append(int(round(window_avg)))
     
     return smoothed
 
-# ==================== 类和路由定义 ====================
+# ==================== Classes and Routes Definitions ====================
 
 class CrowdDensityMonitor:
-    """人群密度监测器 - 集成YOLO8和实时数据统计"""
+    """Crowd Density Monitor - Integrates YOLO8 and Real-time Data Statistics"""
     
     def __init__(self, model_name='yolov8n.pt', camera_id=0, width=1280, height=720, conf=0.2):
-        """初始化YOLO模型和摄像头
+        """Initialize YOLO model and camera
         
         Args:
-            model_name: YOLO模型文件名 (yolov8n/s/m/l/x.pt)
-            camera_id: 摄像头ID
-            width: 输入分辨率宽度 (推荐: 1280)
-            height: 输入分辨率高度 (推荐: 720)
-            conf: 置信度阈值 (默认: 0.1，范围: 0.1-0.9)
+            model_name: YOLO model filename (yolov8n/s/m/l/x.pt)
+            camera_id: Camera ID
+            width: Input resolution width (recommended: 1280)
+            height: Input resolution height (recommended: 720)
+            conf: Confidence threshold (default: 0.1, range: 0.1-0.9)
         """
-        # 模型初始化
+        # Model initialization
         self.model = YOLO(model_name)
         self.upload_model = YOLO(model_name)
         
-        # 检测参数
+        # Detection parameters
         self.confidence_threshold = conf
         self.cap = cv2.VideoCapture(camera_id)
         self.cap.set(cv2.CAP_PROP_FPS, 30)
@@ -108,47 +108,47 @@ class CrowdDensityMonitor:
         actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
-        # 检测结果
+        # Detection results
         self.person_count = 0
         self.density = 0
         self.detections = []
         self.frame_count = 0
         self.inference_time = 0
         
-        # 实时数据统计
+        # Real-time data statistics
         self.density_history = deque(maxlen=100)
         self.person_count_history = deque(maxlen=100)
         self.timestamp_history = deque(maxlen=100)
         
-        # 线程锁
+        # Thread lock
         self.lock = threading.Lock()
         
-        # 视频流参数
+        # Frame for detection
         self.current_frame = None
         self.frame_for_detection = None
         self.detection_interval = 3
         
-        # 后台检测线程
+        # Background detection thread
         self.detection_thread = None
         self.stop_detection = False
         
-        # 统计数据（按时段）
-        self.hourly_stats = {}  # 按小时统计
-        self.daily_stats = []   # 日统计
+        # Statistics data (by time period)
+        self.hourly_stats = {}  # Hourly statistics
+        self.daily_stats = []   # Daily statistics
         
-        # 数据库相关
+        # Database related
         self.db = None
         self.last_db_save_time = datetime.now()
-        self.db_save_interval = 60  # 每1分钟保存一次（60秒）- 建议频率：1分钟最优，足以捕捉人流变化且不过度记录
+        self.db_save_interval = 60  
         
-        # GPIO相关 - 按钮和LED
+        # GPIO related - Button and LED
         self.button_thread = None
         self.stop_button = False
         self.button_state = None
         self.last_button_press = 0
-        self.button_debounce_time = 0.5  # 防抖延迟（秒）
+        self.button_debounce_time = 0.5  # Debounce delay (seconds)
         
-        # GPIO初始化
+        # GPIO initialization
         try:
             import Hobot.GPIO as GPIO
             self.GPIO = GPIO
@@ -158,46 +158,46 @@ class CrowdDensityMonitor:
             GPIO.setmode(GPIO.BOARD)
             GPIO.setup(self.LED_PIN, GPIO.OUT)
             GPIO.setup(self.BUTTON_PIN, GPIO.IN)
-            GPIO.output(self.LED_PIN, GPIO.LOW)  # 初始化LED为关闭
-            print("[✓] GPIO已初始化 (LED: Pin 31, Button: Pin 13)")
+            GPIO.output(self.LED_PIN, GPIO.LOW)  # Initialize LED to off
+            print("[OK] GPIO initialized (LED: Pin 31, Button: Pin 13)")
         except ImportError:
-            print("[⚠️] Hobot.GPIO未安装，GPIO功能禁用")
+            print("[WARNING] Hobot.GPIO not installed, GPIO features disabled")
             self.GPIO = None
         except Exception as e:
-            print(f"[⚠️] GPIO初始化失败: {e}")
+            print(f"[WARNING] GPIO initialization failed: {e}")
             self.GPIO = None
         
-        # 初始化数据库
+        # Initialize database
         try:
             self.db = init_db()
-            print("[✓] 数据库已初始化")
+            print("[OK] Database initialized")
         except Exception as e:
-            print(f"[警告] 数据库初始化失败: {e}")
+            print(f"[WARNING] Database initialization failed: {e}")
             self.db = None
         
         print("=" * 50)
-        print("人群密度监测器初始化完成")
-        print(f"  - 分辨率: {actual_width}x{actual_height}")
-        print(f"  - 模型: {model_name}")
-        print(f"  - 置信度阈值: {self.confidence_threshold}")
+        print("Crowd density monitor initialization complete")
+        print(f"  - Resolution: {actual_width}x{actual_height}")
+        print(f"  - Model: {model_name}")
+        print(f"  - Confidence threshold: {self.confidence_threshold}")
         print("=" * 50)
     
     def start_detection_thread(self):
-        """启动后台检测线程"""
+        """Start background detection thread"""
         self.stop_detection = False
         self.detection_thread = threading.Thread(target=self._detection_worker, daemon=True)
         self.detection_thread.start()
-        print("[✓] 后台检测线程已启动")
+        print("[✓] Background detection thread started")
         
-        # 启动按钮监听线程
+        # Start button listening thread
         if self.GPIO:
             self.stop_button = False
             self.button_thread = threading.Thread(target=self._button_worker, daemon=True)
             self.button_thread.start()
-            print("[✓] 按钮监听线程已启动")
+            print("[✓] Button listening thread started")
     
     def stop_detection_thread(self):
-        """停止后台检测线程"""
+        """Stop background detection thread"""
         self.stop_detection = True
         self.stop_button = True
         if self.detection_thread:
@@ -206,7 +206,7 @@ class CrowdDensityMonitor:
             self.button_thread.join(timeout=2)
     
     def _detection_worker(self):
-        """后台检测工作线程"""
+        """Background detection worker thread"""
         import time
         detection_count = 0
         
@@ -225,7 +225,7 @@ class CrowdDensityMonitor:
                     frame_area = frame_to_detect.shape[0] * frame_to_detect.shape[1]
                     density = person_count / (frame_area / 10000)
                     
-                    # 更新检测结果和统计数据
+                    # Update detection results and statistics
                     with self.lock:
                         self.detections = detections
                         self.person_count = person_count
@@ -234,7 +234,7 @@ class CrowdDensityMonitor:
                         self.person_count_history.append(person_count)
                         self.timestamp_history.append(datetime.now())
                         
-                        # 更新小时统计
+                        # Update hourly statistics
                         now = datetime.now()
                         hour_key = now.strftime("%H:00")
                         if hour_key not in self.hourly_stats:
@@ -251,37 +251,37 @@ class CrowdDensityMonitor:
                         stats['max_people'] = max(stats['max_people'], person_count)
                         stats['min_people'] = min(stats['min_people'], person_count)
                         
-                        # 定期保存到数据库 (每1分钟)
+                        # Periodically save to Database (every 1 minute)
                         if (datetime.now() - self.last_db_save_time).total_seconds() >= self.db_save_interval:
                             if self.db:
                                 try:
-                                    # 只在营业时间内保存数据 (7:00 - 23:55)
+                                    # Only save data during business hours (7:00 - 23:55)
                                     if 7 <= now.hour < 24:
-                                        # 保存当前时间的数据 (仅保存：人数、时间、星期几)
+                                        # Save current time data (only save: people count, time, weekday)
                                         weekday = now.weekday()
                                         result = self.db.add_record(now, person_count, weekday)
                                         self.last_db_save_time = now
-                                        # 每次保存时打印日志
+                                        # Print log each time data is saved
                                         if detection_count % 100 == 0:
-                                            print(f"[数据库] 已保存数据: {person_count}人 @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                                            print(f"[Database] Data saved: {person_count} people @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
                                 except Exception as e:
-                                    print(f"[警告] 数据库保存失败: {e}")
+                                    print(f"[WARNING] Database save failed: {e}")
                     
                     detection_count += 1
                     if detection_count % 10 == 0:
-                        print(f"[检测] 已处理{detection_count}次 | 最新: {person_count}人 | 耗时: {self.inference_time*1000:.0f}ms")
+                        print(f"[Detection] Processed {detection_count} times | Latest: {person_count} people | Time: {self.inference_time*1000:.0f}ms")
                 
                 except Exception as e:
-                    print(f"[警告] 检测失败: {e}")
+                    print(f"[WARNING] Detection failed: {e}")
             
             time.sleep(0.01)
     
     def blink_led(self, times=3, interval=0.2):
-        """LED闪烁函数
+        """LED blink function
         
         Args:
-            times: 闪烁次数
-            interval: 闪烁间隔（秒）
+            times: Number of blinks
+            interval: Blink interval (seconds)
         """
         if not self.GPIO:
             return
@@ -293,10 +293,10 @@ class CrowdDensityMonitor:
                 self.GPIO.output(self.LED_PIN, self.GPIO.LOW)
                 time.sleep(interval)
         except Exception as e:
-            print(f"[警告] LED闪烁失败: {e}")
+            print(f"[WARNING] LED blink failed: {e}")
     
     def save_button_data(self):
-        """按钮按下时保存当前人流数据"""
+        """Save current crowd data when button is pressed"""
         if not self.db:
             return
         
@@ -305,20 +305,20 @@ class CrowdDensityMonitor:
             person_count = self.person_count
             weekday = now.weekday()
             
-            # 只在营业时间内保存数据 (7:00 - 23:55)
+            # Only save data during business hours (7:00 - 23:55)
             if 7 <= now.hour < 24:
                 result = self.db.add_record(now, person_count, weekday)
-                print(f"[按钮保存] 数据已保存: {person_count}人 @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"[Button Save] Data saved: {person_count} people @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
                 return True
             else:
-                print(f"[按钮保存] 营业时间外，数据未保存")
+                print(f"[Button Save] Data not saved: Outside business hours")
                 return False
         except Exception as e:
-            print(f"[警告] 按钮保存失败: {e}")
+            print(f"[WARNING] Button save failed: {e}")
             return False
     
     def _button_worker(self):
-        """按钮监听工作线程"""
+        """Button listening worker thread"""
         import time
         last_state = self.GPIO.LOW
         
@@ -326,40 +326,40 @@ class CrowdDensityMonitor:
             try:
                 button_state = self.GPIO.input(self.BUTTON_PIN)
                 
-                # 检测按钮从LOW变为HIGH（按下）
+                # Detect button press from LOW to HIGH
                 if button_state == self.GPIO.HIGH and last_state == self.GPIO.LOW:
                     current_time = time.time()
                     
-                    # 防抖处理
+                    # Debounce handling
                     if (current_time - self.last_button_press) > self.button_debounce_time:
-                        print("[按钮] 按钮被按下 ✓")
+                        print("[Button] Button pressed ✓")
                         
-                        # 保存数据
+                        # Save data
                         self.save_button_data()
                         
-                        # LED闪烁（3次闪烁，每次0.1秒）
+                        # LED blink (3 times, 0.1 seconds each)
                         self.blink_led(times=3, interval=0.1)
                         
                         self.last_button_press = current_time
                 
                 last_state = button_state
-                time.sleep(0.05)  # 防抖延迟
+                time.sleep(0.05)  # Debounce delay
                 
             except Exception as e:
-                print(f"[警告] 按钮监听失败: {e}")
+                print(f"[WARNING] Button listening failed: {e}")
                 time.sleep(0.1)
     
     def generate_frames(self):
-        """生成视频流 - 带有检测框和信息绘制"""
+        """Generate video stream - with detection boxes and information overlay"""
         detection_frame_counter = 0
         
         while True:
             ret, frame = self.cap.read()
             if not ret:
-                print("[视频流] 视频流结束")
+                print("[Video Stream] Video stream ended")
                 break
             
-            # 每隔N帧提供一个给检测线程
+            # Provide a frame for detection every N frames
             if detection_frame_counter % self.detection_interval == 0:
                 with self.lock:
                     self.frame_for_detection = frame.copy()
@@ -367,7 +367,7 @@ class CrowdDensityMonitor:
             detection_frame_counter += 1
             self.frame_count += 1
             
-            # 在视频帧上绘制检测结果
+            # Draw detection results on video frame
             display_frame = frame.copy()
             with self.lock:
                 detections = self.detections
@@ -375,12 +375,12 @@ class CrowdDensityMonitor:
                 density = self.density
                 inference_time = self.inference_time
             
-            # 绘制检测框
+            # Draw detection boxes
             for detection in detections:
                 x1, y1, x2, y2 = detection.xyxy[0]
                 cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
             
-            # 绘制文字信息
+            # Draw text information
             cv2.putText(display_frame, f'People Count: {person_count}', (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.putText(display_frame, f'Density: {density:.2f}', (10, 70),
@@ -390,7 +390,7 @@ class CrowdDensityMonitor:
             cv2.putText(display_frame, f'Inference: {inference_time*1000:.0f}ms', (10, 150),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             
-            # 编码为JPEG
+            # Encode as JPEG
             ret, buffer = cv2.imencode('.jpg', display_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             frame_data = buffer.tobytes()
             
@@ -398,7 +398,7 @@ class CrowdDensityMonitor:
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
     
     def process_uploaded_image(self, image_path):
-        """处理上传的图片"""
+        """Process uploaded image"""
         frame = cv2.imread(image_path)
         if frame is None:
             return None, 0, 0
@@ -417,7 +417,7 @@ class CrowdDensityMonitor:
             frame_area = frame.shape[0] * frame.shape[1]
             density = person_count / (frame_area / 10000)
             
-            print(f"[上传图片] 检测完成 | {person_count}人 | 耗时: {inference_time*1000:.0f}ms")
+            print(f"[Uploaded Image] Detection completed | {person_count} people | Time: {inference_time*1000:.0f}ms")
             
             display_frame = frame.copy()
             for detection in detections:
@@ -427,52 +427,52 @@ class CrowdDensityMonitor:
             return display_frame, person_count, density
         
         except Exception as e:
-            print(f"[上传图片] 检测失败: {e}")
+            print(f"[Uploaded Image] Detection failed: {e}")
             return None, 0, 0
     
     def get_realtime_stats(self):
-        """获取实时统计数据"""
+        """Get real-time statistics"""
         with self.lock:
             if len(self.person_count_history) == 0:
                 return {
-                    "pickup_time": "计算中...",
-                    "crowd_level": "无数据",
+                    "pickup_time": "Calculating...",
+                    "crowd_level": "No data",
                     "crowd_range": "0人"
                 }
             
             current_count = self.person_count
             
-            # 根据人数估算取餐时间
+            # Estimate pickup time based on crowd size
             if current_count < 10:
-                pickup_time = "2-5分钟"
-                crowd_level = "低"
+                pickup_time = "2-5 minutes"
+                crowd_level = "Low"
             elif current_count < 20:
-                pickup_time = "5-10分钟"
-                crowd_level = "中等"
+                pickup_time = "5-10 minutes"
+                crowd_level = "Medium"
             elif current_count < 30:
-                pickup_time = "10-30分钟"
-                crowd_level = "高"
+                pickup_time = "10-30 minutes"
+                crowd_level = "High"
             else:
-                pickup_time = "30分钟以上"
-                crowd_level = "非常高"
+                pickup_time = "Over 30 minutes"
+                crowd_level = "Very High"
             
             return {
                 "pickup_time": pickup_time,
                 "crowd_level": crowd_level,
-                "crowd_range": f"约{current_count}人（当前）"
+                "crowd_range": f"Approximately {current_count} people (current)"
             }
     
     def get_history_stats(self):
-        """获取历史统计数据"""
+        """Get historical statistics"""
         with self.lock:
-            # 周人流量（最近7天）
+            # Weekly flow (last 7 days)
             if len(self.person_count_history) > 0:
                 avg_count = int(np.mean(list(self.person_count_history)))
             else:
                 avg_count = 0
             weekly_flow = [avg_count] * 7
             
-            # 高峰时段统计
+            # Peak time statistics
             peak_times = {}
             for hour_key in sorted(self.hourly_stats.keys()):
                 stats = self.hourly_stats[hour_key]
@@ -482,7 +482,7 @@ class CrowdDensityMonitor:
             if not peak_times:
                 peak_times = {"09:00": 20, "12:00": 60, "18:00": 40}
             
-            # 热力图数据
+            # Heatmap data
             heatmap = [
                 [10, 20, 30, 40],
                 [15, 25, 35, 45],
@@ -496,29 +496,28 @@ class CrowdDensityMonitor:
             }
     
     def __del__(self):
-        """析构函数 - 清理资源"""
+        """Destructor - clean up resources"""
         try:
-            # 关闭摄像头
+            # Release the camera
             if self.cap:
                 self.cap.release()
             
-            # 清理GPIO
+            # Clean up GPIO
             if self.GPIO:
                 try:
                     self.GPIO.output(self.LED_PIN, self.GPIO.LOW)
                     self.GPIO.cleanup()
-                    print("[✓] GPIO已清理")
+                    print("[✓] GPIO cleaned up")
                 except Exception as e:
-                    print(f"[警告] GPIO清理失败: {e}")
+                    print(f"[WARNING] GPIO cleanup failed: {e}")
         except Exception as e:
-            print(f"[警告] 析构函数执行失败: {e}")
+            print(f"[WARNING] Destructor execution failed: {e}")
 
-
-# 全局监测器实例
+# Global monitor instance
 monitor = None
 
 def init_monitor():
-    """初始化监测器"""
+    """Initialize the monitor"""
     global monitor
     try:
         monitor = CrowdDensityMonitor(
@@ -530,46 +529,45 @@ def init_monitor():
         )
         monitor.start_detection_thread()
     except Exception as e:
-        print(f"[错误] 无法初始化监测器: {e}")
-        print("[信息] 将使用模拟数据")
+        print(f"[ERROR] Failed to initialize monitor: {e}")
+        print("[INFO] Using simulated data")
         monitor = None
 
 
 def allowed_file(filename):
-    """检查文件是否被允许"""
+    """Check if the file is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def allowed_video(filename):
-    """检查视频文件是否被允许"""
+    """Check if the video file is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in VIDEO_EXTENSIONS
 
 
-# ========== 路由定义 ==========
-
+# ========== Route Definitions ==========
 @app.route('/')
 def index():
-    """首页 - 实时取餐时间预估"""
+    """Home - Real-time Pickup Time Estimation"""
     if monitor:
         data = monitor.get_realtime_stats()
     else:
         data = {
-            "pickup_time": "8-12分钟",
-            "crowd_level": "中等",
-            "crowd_range": "约35-50人"
+            "pickup_time": "8-12 minutes",
+            "crowd_level": "Medium",
+            "crowd_range": "Approximately 35-50 people"
         }
     return render_template('index.html', data=data)
 
 
 @app.route('/history')
 def history():
-    """历史数据页面"""
+    """Historical Data Page"""
     if monitor:
         data = monitor.get_history_stats()
     else:
         data = {
             "weekly_flow": [30, 45, 60, 50, 70, 80, 65],
-            "peak_times": {"早上": 20, "中午": 60, "晚上": 40},
+            "peak_times": {"Morning": 20, "Noon": 60, "Evening": 40},
             "heatmap": [
                 [10, 20, 30, 40],
                 [15, 25, 35, 45],
@@ -581,7 +579,7 @@ def history():
 
 @app.route('/api/time')
 def api_time():
-    """获取服务器当前时间 API"""
+    """Get current server time API"""
     now = datetime.now()
     return jsonify({
         'timestamp': now.isoformat(),
@@ -595,20 +593,20 @@ def api_time():
 
 @app.route('/api/realtime')
 def api_realtime():
-    """获取实时数据 API"""
+    """Get real-time data API"""
     if monitor:
         return jsonify(monitor.get_realtime_stats())
     else:
         return jsonify({
-            "pickup_time": "8-12分钟",
-            "crowd_level": "中等",
-            "crowd_range": "约35-50人"
+            "pickup_time": "8-12 minutes",
+            "crowd_level": "Medium",
+            "crowd_range": "Approximately 35-50 people"
         })
 
 
 @app.route('/api/save-manual', methods=['POST'])
 def api_save_manual():
-    """手动保存当前数据 API（可选的Web端触发）"""
+    """Manually save current data API (optional Web trigger)"""
     if monitor:
         success = monitor.save_button_data()
         monitor.blink_led(times=2, interval=0.15)
@@ -618,12 +616,12 @@ def api_save_manual():
             'timestamp': datetime.now().isoformat()
         })
     else:
-        return jsonify({'success': False, 'error': '监测器未初始化'}), 500
+        return jsonify({'success': False, 'error': 'Monitor not initialized'}), 500
 
 
 @app.route('/api/history')
 def api_history():
-    """获取历史数据 API"""
+    """Get historical data API"""
     if monitor:
         return jsonify(monitor.get_history_stats())
     else:
@@ -640,26 +638,26 @@ def api_history():
 
 @app.route('/api/weekday/<int:weekday>')
 def api_weekday_data(weekday):
-    """获取指定星期几的历史数据
+    """Get historical data for a specific weekday
     
     weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
-    返回该星期几所有日期的人数随时间的变化
+    Returns the variation of the number of people over time for all dates of that weekday
     """
     try:
         db = get_db()
         if not db:
-            return jsonify({'error': '数据库未初始化'}), 503
+            return jsonify({'error': 'Database not initialized'}), 503
         
         if weekday < 0 or weekday > 6:
-            return jsonify({'error': '星期几参数错误，应为0-6'}), 400
+            return jsonify({'error': 'Weekday parameter ERROR, should be 0-6'}), 400
         
-        # 获取该星期几的所有记录
+        # Get all records for that weekday
         records = db.get_records_by_weekday(weekday)
         
         if not records:
             return jsonify({
                 'weekday': weekday,
-                'weekday_name': ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][weekday],
+                'weekday_name': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][weekday],
                 'records_count': 0,
                 'data': [],
                 'stats': {
@@ -669,10 +667,10 @@ def api_weekday_data(weekday):
                 }
             })
         
-        # 获取统计数据
+        # Get statistical data  
         stats = db.get_weekday_stats(weekday)
         
-        # 格式化记录数据，按时间排序
+        # Format record data, sorted by time
         data = []
         person_counts = []
         
@@ -684,21 +682,21 @@ def api_weekday_data(weekday):
                 'time': record['timestamp'].split('T')[1][:5] if 'T' in record['timestamp'] else ''
             })
         
-        # 应用更强的移动平均平滑处理（窗口大小为21，约20分钟）
+        # Apply stronger moving average smoothing (window size 21, about 20 minutes)
         smoothed_counts = smooth_data(person_counts, window_size=21)
         
         for i, item in enumerate(data):
             if i < len(smoothed_counts):
                 item['person_count'] = smoothed_counts[i]
         
-        # 数据采样：每10分钟取一个数据点，减少图表密度
+        # Data sampling: take one data point every 10 minutes to reduce chart density
         sampled_data = []
         for i in range(0, len(data), 10):
             sampled_data.append(data[i])
         
         return jsonify({
             'weekday': weekday,
-            'weekday_name': ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][weekday],
+            'weekday_name': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][weekday],
             'records_count': len(records),
             'data': sampled_data,
             'stats': {
@@ -714,11 +712,11 @@ def api_weekday_data(weekday):
 
 @app.route('/api/db/stats')
 def api_db_stats():
-    """获取数据库统计信息"""
+    """Get Database statistics"""
     try:
         db = get_db()
         if not db:
-            return jsonify({'error': '数据库未初始化'}), 503
+            return jsonify({'error': 'Database not initialized'}), 503
         
         record_count = db.get_record_count()
         db_size = db.get_database_size()
@@ -737,7 +735,7 @@ def api_db_stats():
 
 @app.route('/api/stats')
 def get_stats():
-    """获取实时检测统计"""
+    """Get real-time detection statistics"""
     if monitor:
         with monitor.lock:
             return jsonify({
@@ -764,23 +762,23 @@ def video_feed():
         return Response(monitor.generate_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
     else:
-        # 返回占位符
-        return jsonify({'error': '摄像头未初始化'}), 503
+        # Return placeholder
+        return jsonify({'error': 'Camera not initialized'}), 503
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """处理上传的照片"""
+    """Handle uploaded photos"""
     if monitor is None:
-        return jsonify({'error': '检测器未初始化'}), 503
+        return jsonify({'error': 'Monitor not initialized'}), 503
     
     if 'file' not in request.files:
-        return jsonify({'error': '没有文件'}), 400
+        return jsonify({'error': 'No file'}), 400
     
     file = request.files['file']
     
     if file.filename == '':
-        return jsonify({'error': '没有选择文件'}), 400
+        return jsonify({'error': 'No file selected'}), 400
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -790,7 +788,7 @@ def upload_file():
         result_frame, person_count, density = monitor.process_uploaded_image(filepath)
         
         if result_frame is None:
-            return jsonify({'error': '无法读取图像'}), 400
+            return jsonify({'error': 'Unable to read image'}), 400
         
         result_filename = f'result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jpg'
         result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
@@ -803,36 +801,35 @@ def upload_file():
             'image_url': f'/static/{result_filename}'
         })
     
-    return jsonify({'error': '文件格式不支持'}), 400
+    return jsonify({'error': 'File format not supported'}), 400
 
 
 @app.route('/get_image/<filename>')
 def get_image(filename):
-    """获取处理后的图像"""
+    """Get processed image"""
     try:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except:
-        return jsonify({'error': '文件不存在'}), 404
-
+        return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("启动集成 Flask 服务器 (MC + Frontend)")
+    print("Starting integrated Flask server (MC + Frontend)")
     print("=" * 70)
-    print(f"模板文件夹: {TEMPLATE_FOLDER}")
-    print(f"静态文件夹: {STATIC_FOLDER}")
+    print(f"Template folder: {TEMPLATE_FOLDER}")
+    print(f"Static folder: {STATIC_FOLDER}")
     
-    # 尝试打印配置信息
+    # Try to print configuration info
     try:
         print_routes_info()
         startup_info = get_startup_info()
-        print("\n访问地址:")
+        print("\nAccess URLs:")
         for key, url in startup_info.items():
             print(f"  - {key:15}: {url}")
     except:
-        print("\n访问地址:")
-        print(f"  - 主页: http://localhost:5000")
-        print(f"  - 历史数据: http://localhost:5000/history")
+        print("\nAccess URLs:")
+        print(f"  - Home: http://localhost:5000")
+        print(f"  - History: http://localhost:5000/history")
     
     print("=" * 70)
     
@@ -845,7 +842,7 @@ if __name__ == '__main__':
         
         app.run(host=host, port=port, debug=debug, threaded=threaded)
     except KeyboardInterrupt:
-        print("\n正在关闭...")
+        print("\nShutting down...")
         if monitor:
             monitor.stop_detection_thread()
-        print("✓ 已安全关闭")
+        print("✓ Safely shut down")

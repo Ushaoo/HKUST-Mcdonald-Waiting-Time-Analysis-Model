@@ -1,8 +1,8 @@
 """
-应用配置文件 - 支持多种访问方式和路由管理
+Application configuration file - supports multiple access methods and route management
 """
 
-# Flask应用配置
+# Flask application configuration
 FLASK_CONFIG = {
     'DEBUG': False,
     'HOST': '0.0.0.0',
@@ -10,97 +10,97 @@ FLASK_CONFIG = {
     'THREADED': True,
 }
 
-# 路由配置
+# Route configuration
 ROUTES_CONFIG = {
-    # 主应用路由（前端UI）
+    # Main application routes (frontend UI)
     '/': {
-        'name': '首页 - 实时取餐预估',
+        'name': 'Home - Real-time Wait Estimation',
         'type': 'frontend',
         'template': 'index.html'
     },
     '/history': {
-        'name': '历史数据',
+        'name': 'Historical Data',
         'type': 'frontend',
         'template': 'history.html'
     },
     
-    # API路由
+    # API routes
     '/api/realtime': {
-        'name': '实时数据API',
+        'name': 'Real-time Data API',
         'type': 'api',
-        'description': '获取实时统计数据'
+        'description': 'Get real-time statistics'
     },
     '/api/history': {
-        'name': '历史数据API',
+        'name': 'Historical Data API',
         'type': 'api',
-        'description': '获取历史统计数据'
+        'description': 'Get historical statistics'
     },
     '/api/stats': {
-        'name': '详细统计API',
+        'name': 'Detailed Statistics API',
         'type': 'api',
-        'description': '获取详细的检测统计信息'
+        'description': 'Get detailed detection statistics'
     },
     
-    # 媒体路由
+    # Media routes
     '/video_feed': {
-        'name': '实时视频流',
+        'name': 'Real-time Video Stream',
         'type': 'stream',
-        'description': '实时摄像头视频流'
+        'description': 'Live camera video stream'
     },
     '/upload': {
-        'name': '图片上传',
+        'name': 'Image Upload',
         'type': 'api',
         'methods': ['POST']
     },
 }
 
-# 不同域名访问配置（如果需要）
+# Domain routing configuration (for multiple domain support)
 DOMAIN_ROUTES = {
     'localhost:5000': {
-        'name': '本地开发服务器',
+        'name': 'Local development server',
         'routes': ['/', '/history', '/api/realtime', '/api/history', '/video_feed']
     },
     'default': {
-        'name': '默认配置',
-        'routes': 'all'  # 所有路由都可用
+        'name': 'Default configuration',
+        'routes': 'all'  # All routes are available
     }
 }
 
-# 摄像头配置
+# Camera configuration
 CAMERA_CONFIG = {
     'enabled': True,
     'camera_id': 0,
     'width': 1280,
     'height': 720,
     'fps': 30,
-    'quality': 70  # JPEG质量 (1-100)
+    'quality': 70  # JPEG quality (1-100)
 }
 
-# YOLO模型配置
+# YOLO model configuration
 MODEL_CONFIG = {
     'enabled': True,
     'model_name': 'yolov8n.pt',
     'confidence_threshold': 0.1,
-    'detection_interval': 3,  # 每N帧进行一次检测
-    'class_id': 0,  # 只检测人（COCO数据集中的类别0）
+    'detection_interval': 3,  # Perform detection every N frames
+    'class_id': 0,  # Detect persons only (class 0 in COCO dataset)
 }
 
-# 数据统计配置
+# Data statistics configuration
 STATS_CONFIG = {
-    'history_maxlen': 100,  # 保留最近100条检测结果
-    'update_interval': 2000,  # 前端更新间隔（毫秒）
-    'enable_hourly_stats': True,  # 是否启用小时统计
-    'enable_daily_stats': True,  # 是否启用日统计
+    'history_maxlen': 100,  # Keep last 100 detection results
+    'update_interval': 2000,  # Frontend update interval (milliseconds)
+    'enable_hourly_stats': True,  # Enable hourly statistics
+    'enable_daily_stats': True,  # Enable daily statistics
 }
 
-# 安全配置
+# Security configuration
 SECURITY_CONFIG = {
-    'max_file_size': 500 * 1024 * 1024,  # 最大文件大小 (500MB)
+    'max_file_size': 500 * 1024 * 1024,  # Maximum file size (500MB)
     'allowed_image_extensions': {'png', 'jpg', 'jpeg', 'gif', 'bmp'},
     'allowed_video_extensions': {'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'},
 }
 
-# 日志配置
+# Logging configuration
 LOG_CONFIG = {
     'level': 'INFO',
     'format': '[%(asctime)s] %(levelname)s: %(message)s',
@@ -108,12 +108,12 @@ LOG_CONFIG = {
 
 
 def get_route_info(path):
-    """获取指定路由的信息"""
+    """Get information for specified route"""
     return ROUTES_CONFIG.get(path, None)
 
 
 def get_enabled_routes():
-    """获取所有启用的路由"""
+    """Get all enabled routes"""
     routes = []
     for path, config in ROUTES_CONFIG.items():
         if config.get('type') != 'disabled':
@@ -126,38 +126,38 @@ def get_enabled_routes():
 
 
 def print_routes_info():
-    """打印所有可用的路由信息"""
+    """Print information for all available routes"""
     print("\n" + "="*60)
-    print("可用的路由和API")
+    print("Available Routes and APIs")
     print("="*60)
     
     routes = get_enabled_routes()
     
-    # 按类型分组
+    # Group by type
     frontend_routes = [r for r in routes if r['type'] == 'frontend']
     api_routes = [r for r in routes if r['type'] == 'api']
     stream_routes = [r for r in routes if r['type'] == 'stream']
     
     if frontend_routes:
-        print("\n【前端UI路由】")
+        print("\n[Frontend UI Routes]")
         for route in frontend_routes:
-            print(f"  ✓ {route['path']:20} - {route['name']}")
+            print(f"  * {route['path']:20} - {route['name']}")
     
     if api_routes:
-        print("\n【API路由】")
+        print("\n[API Routes]")
         for route in api_routes:
-            print(f"  ✓ {route['path']:20} - {route['name']}")
+            print(f"  * {route['path']:20} - {route['name']}")
     
     if stream_routes:
-        print("\n【媒体流路由】")
+        print("\n[Media Stream Routes]")
         for route in stream_routes:
-            print(f"  ✓ {route['path']:20} - {route['name']}")
+            print(f"  * {route['path']:20} - {route['name']}")
     
     print("\n" + "="*60)
 
 
 def get_startup_info():
-    """获取启动信息"""
+    """Get startup information"""
     port = FLASK_CONFIG['PORT']
     host = FLASK_CONFIG['HOST'] if FLASK_CONFIG['HOST'] != '0.0.0.0' else 'localhost'
     
