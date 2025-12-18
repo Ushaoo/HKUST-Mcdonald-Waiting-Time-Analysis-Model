@@ -5,6 +5,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from flask import Flask, render_template, Response, request, jsonify, send_from_directory
 import threading
+import time
 import os
 from werkzeug.utils import secure_filename
 from pathlib import Path
@@ -48,6 +49,37 @@ app.config['MAX_CONTENT_LENGTH'] = SECURITY_CONFIG.get('max_file_size', 500 * 10
 # 重新配置模板和静态文件夹
 app.template_folder = TEMPLATE_FOLDER
 app.static_folder = STATIC_FOLDER
+
+# ==================== 数据平滑处理函数 ====================
+def smooth_data(data, window_size=5):
+    """
+    使用移动平均法平滑数据曲线
+    
+    Args:
+        data: 原始数据列表
+        window_size: 移动窗口大小（默认5，表示前后各2个数据点的平均）
+    
+    Returns:
+        平滑后的数据列表
+    """
+    if len(data) < window_size:
+        return data
+    
+    smoothed = []
+    half_window = window_size // 2
+    
+    for i in range(len(data)):
+        # 确定窗口范围
+        start = max(0, i - half_window)
+        end = min(len(data), i + half_window + 1)
+        
+        # 计算窗口内的平均值
+        window_avg = sum(data[start:end]) / (end - start)
+        smoothed.append(int(round(window_avg)))
+    
+    return smoothed
+
+# ==================== 类和路由定义 ====================
 
 class CrowdDensityMonitor:
     """人群密度监测器 - 集成YOLO8和实时数据统计"""
@@ -109,6 +141,32 @@ class CrowdDensityMonitor:
         self.last_db_save_time = datetime.now()
         self.db_save_interval = 60  # 每1分钟保存一次（60秒）- 建议频率：1分钟最优，足以捕捉人流变化且不过度记录
         
+        # GPIO相关 - 按钮和LED
+        self.button_thread = None
+        self.stop_button = False
+        self.button_state = None
+        self.last_button_press = 0
+        self.button_debounce_time = 0.5  # 防抖延迟（秒）
+        
+        # GPIO初始化
+        try:
+            import Hobot.GPIO as GPIO
+            self.GPIO = GPIO
+            self.LED_PIN = 31
+            self.BUTTON_PIN = 13
+            
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(self.LED_PIN, GPIO.OUT)
+            GPIO.setup(self.BUTTON_PIN, GPIO.IN)
+            GPIO.output(self.LED_PIN, GPIO.LOW)  # 初始化LED为关闭
+            print("[✓] GPIO已初始化 (LED: Pin 31, Button: Pin 13)")
+        except ImportError:
+            print("[⚠️] Hobot.GPIO未安装，GPIO功能禁用")
+            self.GPIO = None
+        except Exception as e:
+            print(f"[⚠️] GPIO初始化失败: {e}")
+            self.GPIO = None
+        
         # 初始化数据库
         try:
             self.db = init_db()
@@ -130,12 +188,22 @@ class CrowdDensityMonitor:
         self.detection_thread = threading.Thread(target=self._detection_worker, daemon=True)
         self.detection_thread.start()
         print("[✓] 后台检测线程已启动")
+        
+        # 启动按钮监听线程
+        if self.GPIO:
+            self.stop_button = False
+            self.button_thread = threading.Thread(target=self._button_worker, daemon=True)
+            self.button_thread.start()
+            print("[✓] 按钮监听线程已启动")
     
     def stop_detection_thread(self):
         """停止后台检测线程"""
         self.stop_detection = True
+        self.stop_button = True
         if self.detection_thread:
             self.detection_thread.join(timeout=2)
+        if self.button_thread:
+            self.button_thread.join(timeout=2)
     
     def _detection_worker(self):
         """后台检测工作线程"""
@@ -207,6 +275,79 @@ class CrowdDensityMonitor:
                     print(f"[警告] 检测失败: {e}")
             
             time.sleep(0.01)
+    
+    def blink_led(self, times=3, interval=0.2):
+        """LED闪烁函数
+        
+        Args:
+            times: 闪烁次数
+            interval: 闪烁间隔（秒）
+        """
+        if not self.GPIO:
+            return
+        
+        try:
+            for _ in range(times):
+                self.GPIO.output(self.LED_PIN, self.GPIO.HIGH)
+                time.sleep(interval)
+                self.GPIO.output(self.LED_PIN, self.GPIO.LOW)
+                time.sleep(interval)
+        except Exception as e:
+            print(f"[警告] LED闪烁失败: {e}")
+    
+    def save_button_data(self):
+        """按钮按下时保存当前人流数据"""
+        if not self.db:
+            return
+        
+        try:
+            now = datetime.now()
+            person_count = self.person_count
+            weekday = now.weekday()
+            
+            # 只在营业时间内保存数据 (7:00 - 23:55)
+            if 7 <= now.hour < 24:
+                result = self.db.add_record(now, person_count, weekday)
+                print(f"[按钮保存] 数据已保存: {person_count}人 @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                return True
+            else:
+                print(f"[按钮保存] 营业时间外，数据未保存")
+                return False
+        except Exception as e:
+            print(f"[警告] 按钮保存失败: {e}")
+            return False
+    
+    def _button_worker(self):
+        """按钮监听工作线程"""
+        import time
+        last_state = self.GPIO.LOW
+        
+        while not self.stop_button:
+            try:
+                button_state = self.GPIO.input(self.BUTTON_PIN)
+                
+                # 检测按钮从LOW变为HIGH（按下）
+                if button_state == self.GPIO.HIGH and last_state == self.GPIO.LOW:
+                    current_time = time.time()
+                    
+                    # 防抖处理
+                    if (current_time - self.last_button_press) > self.button_debounce_time:
+                        print("[按钮] 按钮被按下 ✓")
+                        
+                        # 保存数据
+                        self.save_button_data()
+                        
+                        # LED闪烁（3次闪烁，每次0.1秒）
+                        self.blink_led(times=3, interval=0.1)
+                        
+                        self.last_button_press = current_time
+                
+                last_state = button_state
+                time.sleep(0.05)  # 防抖延迟
+                
+            except Exception as e:
+                print(f"[警告] 按钮监听失败: {e}")
+                time.sleep(0.1)
     
     def generate_frames(self):
         """生成视频流 - 带有检测框和信息绘制"""
@@ -353,6 +494,24 @@ class CrowdDensityMonitor:
                 "peak_times": peak_times,
                 "heatmap": heatmap
             }
+    
+    def __del__(self):
+        """析构函数 - 清理资源"""
+        try:
+            # 关闭摄像头
+            if self.cap:
+                self.cap.release()
+            
+            # 清理GPIO
+            if self.GPIO:
+                try:
+                    self.GPIO.output(self.LED_PIN, self.GPIO.LOW)
+                    self.GPIO.cleanup()
+                    print("[✓] GPIO已清理")
+                except Exception as e:
+                    print(f"[警告] GPIO清理失败: {e}")
+        except Exception as e:
+            print(f"[警告] 析构函数执行失败: {e}")
 
 
 # 全局监测器实例
@@ -447,6 +606,21 @@ def api_realtime():
         })
 
 
+@app.route('/api/save-manual', methods=['POST'])
+def api_save_manual():
+    """手动保存当前数据 API（可选的Web端触发）"""
+    if monitor:
+        success = monitor.save_button_data()
+        monitor.blink_led(times=2, interval=0.15)
+        return jsonify({
+            'success': success,
+            'person_count': monitor.person_count,
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({'success': False, 'error': '监测器未初始化'}), 500
+
+
 @app.route('/api/history')
 def api_history():
     """获取历史数据 API"""
@@ -500,18 +674,33 @@ def api_weekday_data(weekday):
         
         # 格式化记录数据，按时间排序
         data = []
+        person_counts = []
+        
         for record in records:
+            person_counts.append(record['person_count'])
             data.append({
                 'timestamp': record['timestamp'],
                 'person_count': record['person_count'],
                 'time': record['timestamp'].split('T')[1][:5] if 'T' in record['timestamp'] else ''
             })
         
+        # 应用更强的移动平均平滑处理（窗口大小为21，约20分钟）
+        smoothed_counts = smooth_data(person_counts, window_size=21)
+        
+        for i, item in enumerate(data):
+            if i < len(smoothed_counts):
+                item['person_count'] = smoothed_counts[i]
+        
+        # 数据采样：每10分钟取一个数据点，减少图表密度
+        sampled_data = []
+        for i in range(0, len(data), 10):
+            sampled_data.append(data[i])
+        
         return jsonify({
             'weekday': weekday,
             'weekday_name': ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][weekday],
             'records_count': len(records),
-            'data': data,
+            'data': sampled_data,
             'stats': {
                 'avg_people': round(stats['avg_people'], 1) if stats else 0,
                 'max_people': stats['max_people'] if stats else 0,

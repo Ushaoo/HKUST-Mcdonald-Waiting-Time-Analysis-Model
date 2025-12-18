@@ -318,7 +318,8 @@
         });
       });
 
-      // 设置默认选中的时间段按钮
+      // 设置默认选中的时间段按钮（先移除所有active，再添加当前的）
+      document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
       document.querySelector(`[data-slot="${currentSlot}"]`).classList.add('active');
       
       // 加载初始数据
@@ -372,7 +373,7 @@
         chart.destroy();
       }
 
-      // 创建新图表 - 红色简约配色
+      // 创建新图表 - 红色简约配色，丝滑曲线
       chart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -381,15 +382,15 @@
             label: `${weekdayNames[currentWeekday]} - 人数`,
             data: personCounts,
             borderColor: '#DA291C',
-            backgroundColor: 'rgba(218, 41, 28, 0.05)',
-            borderWidth: 2,
+            backgroundColor: 'rgba(218, 41, 28, 0.08)',
+            borderWidth: 2.5,
             fill: true,
-            tension: 0.3,
-            pointRadius: 1,
+            tension: 0.5,
+            pointRadius: 0,
             pointBackgroundColor: '#DA291C',
             pointBorderColor: '#DA291C',
             pointBorderWidth: 0,
-            pointHoverRadius: 4,
+            pointHoverRadius: 5,
             pointHoverBackgroundColor: '#FFC72C'
           }]
         },

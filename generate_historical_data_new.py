@@ -14,7 +14,7 @@ from database import CrowdDatabase, DB_PATH
 def generate_historical_data():
     """
     生成历史数据
-    时间范围：2025-11-08 到 2025-11-14 (一周)
+    时间范围：2025-12-01 到 2025-12-14 (两周)
     开门时间：每日07:00
     关门时间：每日23:55
     间隔：1分钟（更合理的数据记录频率）
@@ -25,8 +25,8 @@ def generate_historical_data():
     # 先清空旧数据
     db.clear_all()
     
-    start_date = datetime(2025, 11, 8, 7, 0, 0)
-    end_date = datetime(2025, 11, 14, 23, 55, 0)
+    start_date = datetime(2025, 12, 1, 7, 0, 0)
+    end_date = datetime(2025, 12, 14, 23, 55, 0)
     
     # 定义人流分布 (按小时)
     # 早上：7-9点 (小峰值)
@@ -39,28 +39,30 @@ def generate_historical_data():
         weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
         """
         
-        # 基础时间因子
-        if 7 <= hour < 9:  # 早上7-9点
-            base = 25 + np.random.normal(0, 3)
+        # 基础时间因子（降低正态分布的标准差，使波动更平缓）
+        if 7 <= hour < 8:  # 早上7-8点
+            base = 35 + np.random.normal(0, 2)  # 降低波动
+        elif 8 <= hour < 9:  # 早上8-9点 (增加人流)
+            base = 50 + np.random.normal(0, 2.5)  # 降低波动
         elif 9 <= hour < 11:  # 上午
-            base = 15 + np.random.normal(0, 2)
+            base = 20 + np.random.normal(0, 1)
         elif 11 <= hour < 13:  # 中午11-13点 (高峰)
-            base = 80 + np.random.normal(0, 8)
+            base = 85 + np.random.normal(0, 4)  # 降低波动
         elif 13 <= hour < 17:  # 下午
-            base = 20 + np.random.normal(0, 3)
+            base = 22 + np.random.normal(0, 1.5)
         elif 17 <= hour < 19:  # 傍晚17-19点 (中峰值)
-            base = 60 + np.random.normal(0, 6)
+            base = 65 + np.random.normal(0, 3)  # 降低波动
         elif 19 <= hour < 22:  # 晚上
-            base = 25 + np.random.normal(0, 3)
+            base = 28 + np.random.normal(0, 1.5)
         else:  # 22点后
-            base = 8 + np.random.normal(0, 1)
+            base = 10 + np.random.normal(0, 0.5)
         
         # 周末人数相对较少（周六、周日）
         if weekday >= 5:  # 周六、周日
-            base = base * 0.7
+            base = base * 0.65
         # 周三、周四相对较多
         elif weekday in [2, 3]:  # 周三、周四
-            base = base * 1.15
+            base = base * 1.18
         # 周一、周二、周五为正常
         
         return max(int(base), 0)
@@ -82,8 +84,8 @@ def generate_historical_data():
         if 7 <= hour < 24:
             person_count = get_base_people_count(hour, weekday)
             
-            # 随机波动 ±10%
-            person_count = int(person_count * np.random.uniform(0.9, 1.1))
+            # 随机波动 ±5%（减少波动，使曲线更平滑）
+            person_count = int(person_count * np.random.uniform(0.95, 1.05))
             person_count = max(person_count, 0)
             
             # 添加到数据库
