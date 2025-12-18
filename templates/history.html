@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>历史数据 - 麦当劳</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #FFF7E0;
+      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header {
+      background-color: #DA291C;
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .toggle-btn {
+      position: absolute;
+      right: 40px;
+      background-color: #FFC72C;
+      color: #333;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+
+    .toggle-btn:hover {
+      opacity: 0.9;
+    }
+
+    .card-group {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      color: #DA291C;
+      margin: 0 0 20px 0;
+      font-size: 16px;
+      font-weight: bold;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #FFE8D0;
+    }
+
+    /* 选择器行 */
+    .selector-row {
+      margin-bottom: 25px;
+    }
+
+    .selector-group label {
+      display: block;
+      color: #DA291C;
+      font-weight: bold;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .buttons-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border: 2px solid #FFD9B3;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #DA291C;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      border-color: #DA291C;
+      background: #FFF3E0;
+    }
+
+    .btn.active {
+      background: #DA291C;
+      color: white;
+      border-color: #DA291C;
+    }
+
+    /* 时间段按钮 - 更紧凑 */
+    .time-slot-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      min-width: auto;
+    }
+
+    /* 统计信息 */
+    .stats-box {
+      background-color: #FFF3E0;
+      border: 2px solid #FFD9B3;
+      border-radius: 8px;
+      padding: 25px;
+      text-align: center;
+      margin-bottom: 0;
+    }
+
+    .stats-box .label {
+      font-size: 13px;
+      color: #C8A951;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .stats-box .value {
+      font-size: 42px;
+      color: #DA291C;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .stats-box .unit {
+      font-size: 16px;
+      color: #DA291C;
+      margin-left: 8px;
+      font-weight: 600;
+    }
+
+    /* 图表 */
+    .chart-container {
+      position: relative;
+      height: 350px;
+      margin-top: 20px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .header {
+        padding: 15px 20px;
+      }
+
+      .toggle-btn {
+        right: 20px;
+        padding: 8px 15px;
+        font-size: 12px;
+      }
+
+      .header h1 {
+        font-size: 20px;
+      }
+
+      .card-group {
+        margin: 20px auto;
+        padding: 0 10px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .card h2 {
+        font-size: 15px;
+      }
+
+      .stats-box {
+        padding: 15px;
+      }
+
+      .stats-box .value {
+        font-size: 32px;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <h1>历史数据</h1>
+    <a href="/" class="toggle-btn">返回首页</a>
+  </header>
+
+  <main class="card-group">
+    
+    <div class="card">
+      <h2>数据查询</h2>
+      
+      <div class="selector-row">
+        <label>星期几</label>
+        <div class="buttons-row" id="weekday-buttons">
+          <button class="btn active" data-weekday="0">周一</button>
+          <button class="btn" data-weekday="1">周二</button>
+          <button class="btn" data-weekday="2">周三</button>
+          <button class="btn" data-weekday="3">周四</button>
+          <button class="btn" data-weekday="4">周五</button>
+          <button class="btn" data-weekday="5">周六</button>
+          <button class="btn" data-weekday="6">周日</button>
+        </div>
+      </div>
+
+      <div class="selector-row">
+        <label>时间段</label>
+        <div class="buttons-row" id="slot-buttons">
+          <button class="btn time-slot-btn active" data-slot="0">07-09</button>
+          <button class="btn time-slot-btn" data-slot="1">09-11</button>
+          <button class="btn time-slot-btn" data-slot="2">11-13</button>
+          <button class="btn time-slot-btn" data-slot="3">13-15</button>
+          <button class="btn time-slot-btn" data-slot="4">15-17</button>
+          <button class="btn time-slot-btn" data-slot="5">17-19</button>
+          <button class="btn time-slot-btn" data-slot="6">19-21</button>
+          <button class="btn time-slot-btn" data-slot="7">21-24</button>
+        </div>
+      </div>
+
+      <div class="stats-box">
+        <div class="label">该时间段平均人数</div>
+        <div>
+          <span class="value" id="avgPeople">--</span>
+          <span class="unit">人</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>人数变化</h2>
+      <div class="chart-container">
+        <canvas id="timeSeriesChart"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const timeSlots = [
+      { name: '早餐', range: [7, 9] },
+      { name: '上午', range: [9, 11] },
+      { name: '午餐', range: [11, 13] },
+      { name: '下午', range: [13, 15] },
+      { name: '下午', range: [15, 17] },
+      { name: '晚餐', range: [17, 19] },
+      { name: '晚上', range: [19, 21] },
+      { name: '深夜', range: [21, 24] }
+    ];
+
+    let currentWeekday = 0;
+    let currentSlot = 0;
+    let chart = null;
+
+    // 获取当前时间段
+    function getCurrentTimeSlot() {
+      const now = new Date();
+      const hour = now.getHours();
+      
+      for (let i = 0; i < timeSlots.length; i++) {
+        const [start, end] = timeSlots[i].range;
+        if (hour >= start && hour < end) {
+          return i;
+        }
+      }
+      return 0; // 默认第一个时段
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 设置默认时间段为当前时段
+      currentSlot = getCurrentTimeSlot();
+      
+      // 设置星期几按钮事件
+      document.querySelectorAll('[data-weekday]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('[data-weekday]').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentWeekday = parseInt(this.dataset.weekday);
+          loadData();
+        });
+      });
+
+      // 设置时间段按钮事件
+      document.querySelectorAll('[data-slot]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentSlot = parseInt(this.dataset.slot);
+          loadData();
+        });
+      });
+
+      // 设置默认选中的时间段按钮
+      document.querySelector(`[data-slot="${currentSlot}"]`).classList.add('active');
+      
+      // 加载初始数据
+      loadData();
+    });
+
+    function loadData() {
+      const url = `/api/weekday/${currentWeekday}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          // 计算当前时间段的平均人数
+          const slot = timeSlots[currentSlot];
+          const [startHour, endHour] = slot.range;
+
+          let slotTotal = 0;
+          let slotCount = 0;
+
+          data.data.forEach(record => {
+            const time = record.timestamp.split('T')[1];
+            const hour = parseInt(time.split(':')[0]);
+
+            if (hour >= startHour && hour < endHour) {
+              slotTotal += record.person_count;
+              slotCount += 1;
+            }
+          });
+
+          const avgPeople = slotCount > 0 ? Math.round(slotTotal / slotCount) : 0;
+          document.getElementById('avgPeople').textContent = avgPeople;
+
+          // 更新图表
+          updateChart(data);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('无法加载数据');
+        });
+    }
+
+    function updateChart(data) {
+      const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+
+      // 提取时间和人数
+      const labels = data.data.map(d => d.time);
+      const personCounts = data.data.map(d => d.person_count);
+
+      // 销毁旧图表
+      if (chart) {
+        chart.destroy();
+      }
+
+      // 创建新图表 - 红色简约配色
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `${weekdayNames[currentWeekday]} - 人数`,
+            data: personCounts,
+            borderColor: '#DA291C',
+            backgroundColor: 'rgba(218, 41, 28, 0.05)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 1,
+            pointBackgroundColor: '#DA291C',
+            pointBorderColor: '#DA291C',
+            pointBorderWidth: 0,
+            pointHoverRadius: 4,
+            pointHoverBackgroundColor: '#FFC72C'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: true,
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(218, 41, 28, 0.9)',
+              titleColor: 'white',
+              bodyColor: 'white',
+              padding: 10,
+              titleFont: { size: 12, weight: 'bold' },
+              bodyFont: { size: 12 },
+              callbacks: {
+                label: function(context) {
+                  return `人数: ${context.parsed.y} 人`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: Math.max(...personCounts) * 1.1 || 100,
+              ticks: {
+                font: { size: 11 },
+                color: '#999'
+              },
+              grid: {
+                color: '#FFE8D0',
+                drawBorder: false
+              }
+            },
+            x: {
+              ticks: {
+                font: { size: 10 },
+                color: '#999',
+                maxRotation: 45,
+                minRotation: 0
+              },
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
+
+

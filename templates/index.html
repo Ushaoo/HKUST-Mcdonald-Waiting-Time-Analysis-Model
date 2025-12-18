@@ -1,122 +1,74 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人群密度监测系统</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .container {
-            text-align: center;
-            background: white;
-            border-radius: 15px;
-            padding: 50px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 600px;
-            width: 90%;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 32px;
-        }
-        
-        .subtitle {
-            color: #666;
-            margin-bottom: 40px;
-            font-size: 16px;
-        }
-        
-        .modes {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .mode-btn {
-            flex: 1;
-            min-width: 200px;
-            padding: 30px 20px;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: white;
-            text-decoration: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .mode-btn:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-        
-        .video-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .upload-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .upload-video-btn {
-            background: linear-gradient(135deg, #00bfff 0%, #0099cc 100%);
-        }
-
-        .unified-upload-btn {
-            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
-        }
-        
-        .icon {
-            font-size: 40px;
-        }
-        
-        .description {
-            font-size: 14px;
-            margin-top: 8px;
-            opacity: 0.9;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>取餐时间预估</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+  </style>
 </head>
-<body>
-    <div class="container">
-        <h1>🎥 人群密度监测</h1>
-        <p class="subtitle">选择工作模式</p>
-        
-        <div class="modes">
-            <a href="/mode/video_optimized" class="mode-btn video-btn">
-                <span class="icon">📹</span>
-                <span>实时视频</span>
-                <span class="description">从摄像头检测实时视频 (客户端优化)</span>
-            </a>
 
-            <a href="/mode/upload_unified" class="mode-btn unified-upload-btn">
-                <span class="icon">📁</span>
-                <span>文件检测</span>
-                <span class="description">上传照片或视频自动检测</span>
-            </a>
+<body>
+  <header class="header">
+    <h1>取餐时间预估</h1>
+    <a href="/history" class="toggle-btn">查看历史数据</a>
+  </header>
+
+  <main>
+
+    <div class="card-group">
+
+      <!-- ✅ 第一行：两个卡片并排 -->
+      <div class="card-row">
+        <div class="card card-left">
+          <h2>预计取餐时间</h2>
+          <p class="value" id="pickup-time">{{ data.pickup_time }}</p>
         </div>
+
+        <div class="card card-right">
+          <h2>当前人流量</h2>
+          <p class="value" id="crowd-level">{{ data.crowd_level }}</p>
+        </div>
+      </div>
+
+      <!-- ✅ 第二行：视频卡片宽度与上方两卡片完全对齐 -->
+      <div class="card video-card">
+        <h2>实时排队画面</h2>
+
+        <div class="video-wrapper-wide">
+          <img src="/video_feed" class="video-frame" alt="camera stream" id="video-feed">
+        </div>
+        <p style="text-align: center; margin-top: 10px; color: #666;">
+          <span id="crowd-range">{{ data.crowd_range }}</span>
+        </p>
+      </div>
+
     </div>
+
+  </main>
+
+  <script>
+    // 每2秒更新实时数据
+    function updateRealtimeData() {
+      fetch('/api/realtime')
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('pickup-time').textContent = data.pickup_time;
+          document.getElementById('crowd-level').textContent = data.crowd_level;
+          document.getElementById('crowd-range').textContent = data.crowd_range;
+        })
+        .catch(err => console.error('更新数据失败:', err));
+    }
+
+    // 初始化和定期更新
+    document.addEventListener('DOMContentLoaded', function() {
+      // 首次加载后立即更新
+      updateRealtimeData();
+      
+      // 每2秒更新实时数据
+      setInterval(updateRealtimeData, 2000);
+    });
+  </script>
+
 </body>
 </html>
