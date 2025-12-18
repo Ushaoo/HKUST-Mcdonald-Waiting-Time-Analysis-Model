@@ -1,3 +1,4 @@
+// ...existing code...
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -64,24 +65,28 @@
       margin-bottom: 20px;
     }
 
+    /* Reduce space under the card heading so selectors appear higher */
     .card h2 {
       color: #DA291C;
-      margin: 0 0 20px 0;
+      margin: 0 0 8px 0;        /* moved up: smaller bottom margin */
       font-size: 16px;
-      font-weight: bold;
-      padding-bottom: 12px;
+      font-weight: 700;         /* keep heading slightly heavier */
+      padding-bottom: 8px;      /* smaller underline gap */
       border-bottom: 2px solid #FFE8D0;
     }
 
+    /* Selector layout adjustments */
     .selector-row {
-      margin-bottom: 25px;
+      margin-top: 6px;          /* pull selectors slightly upward */
+      margin-bottom: 12px;      /* reduced gap below selectors */
     }
 
+    /* Make selector labels slightly bolder than normal text but lighter than the h2 */
     .selector-group label {
       display: block;
       color: #DA291C;
-      font-weight: bold;
-      margin-bottom: 12px;
+      font-weight: 600;         /* slightly bold, but less than h2 (700) */
+      margin-bottom: 8px;
       font-size: 14px;
     }
 
@@ -122,33 +127,34 @@
       min-width: auto;
     }
 
-    /* Statistics Box */
+    /* Average people count box — now red with white text */
     .stats-box {
-      background-color: #FFF3E0;
-      border: 2px solid #FFD9B3;
+      background-color: #DA291C;     /* red background */
+      border: 2px solid #B41A16;     /* slightly darker red border */
       border-radius: 8px;
       padding: 25px;
       text-align: center;
       margin-bottom: 0;
+      color: #ffffff;                /* ensure text inherits white */
     }
 
     .stats-box .label {
       font-size: 13px;
-      color: #C8A951;
+      color: rgba(255,255,255,0.95);
       margin-bottom: 10px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .stats-box .value {
       font-size: 42px;
-      color: #DA291C;
-      font-weight: bold;
+      color: #ffffff;
+      font-weight: 700;
       margin: 0;
     }
 
     .stats-box .unit {
       font-size: 16px;
-      color: #DA291C;
+      color: #ffffff;
       margin-left: 8px;
       font-weight: 600;
     }
@@ -447,5 +453,4 @@
 
 </body>
 </html>
-
-
+// ...existing code...
