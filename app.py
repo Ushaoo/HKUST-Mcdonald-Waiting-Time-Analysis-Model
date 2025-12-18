@@ -142,24 +142,48 @@ class CrowdDensityMonitor:
         self.db_save_interval = 60  
         
         # GPIO related - Button and LED
+        # First set (Pin 31 button, Pin 13 LED): Data save + LED blink
         self.button_thread = None
         self.stop_button = False
         self.button_state = None
         self.last_button_press = 0
         self.button_debounce_time = 0.5  # Debounce delay (seconds)
         
+        # Second set (Pin 29 button, Pin 11 LED): Drawing control
+        self.button2_thread = None
+        self.stop_button2 = False
+        self.last_button2_press = 0
+        self.button2_debounce_time = 0.5  # Debounce delay (seconds)
+        self.drawing_enabled = True  # Default: drawing is enabled
+        
         # GPIO initialization
         try:
             import Hobot.GPIO as GPIO
             self.GPIO = GPIO
-            self.LED_PIN = 31
-            self.BUTTON_PIN = 13
+            
+            # First set pins
+            self.LED_PIN = 13       # First set LED
+            self.BUTTON_PIN = 31    # First set button
+            
+            # Second set pins
+            self.BUTTON2_PIN = 29   # Second set button
+            self.LED2_PIN = 11      # Second set LED
             
             GPIO.setmode(GPIO.BOARD)
+            
+            # Setup first set
             GPIO.setup(self.LED_PIN, GPIO.OUT)
             GPIO.setup(self.BUTTON_PIN, GPIO.IN)
             GPIO.output(self.LED_PIN, GPIO.LOW)  # Initialize LED to off
-            print("[OK] GPIO initialized (LED: Pin 31, Button: Pin 13)")
+            
+            # Setup second set
+            GPIO.setup(self.BUTTON2_PIN, GPIO.IN)
+            GPIO.setup(self.LED2_PIN, GPIO.OUT)
+            GPIO.output(self.LED2_PIN, GPIO.HIGH)  # Initialize LED on (drawing enabled)
+            
+            print("[OK] GPIO initialized")
+            print(f"  - Set 1: Button Pin 31, LED Pin 13 (Data save + LED blink)")
+            print(f"  - Set 2: Button Pin 29, LED Pin 11 (Drawing control, default ON)")
         except ImportError:
             print("[WARNING] Hobot.GPIO not installed, GPIO features disabled")
             self.GPIO = None
@@ -189,21 +213,31 @@ class CrowdDensityMonitor:
         self.detection_thread.start()
         print("[✓] Background detection thread started")
         
-        # Start button listening thread
+        # Start button listening threads
         if self.GPIO:
+            # Start first button listener
             self.stop_button = False
             self.button_thread = threading.Thread(target=self._button_worker, daemon=True)
             self.button_thread.start()
-            print("[✓] Button listening thread started")
+            print("[✓] Button 1 listening thread started")
+            
+            # Start second button listener
+            self.stop_button2 = False
+            self.button2_thread = threading.Thread(target=self._button2_worker, daemon=True)
+            self.button2_thread.start()
+            print("[✓] Button 2 listening thread started")
     
     def stop_detection_thread(self):
         """Stop background detection thread"""
         self.stop_detection = True
         self.stop_button = True
+        self.stop_button2 = True
         if self.detection_thread:
             self.detection_thread.join(timeout=2)
         if self.button_thread:
             self.button_thread.join(timeout=2)
+        if self.button2_thread:
+            self.button2_thread.join(timeout=2)
     
     def _detection_worker(self):
         """Background detection worker thread"""
@@ -349,6 +383,42 @@ class CrowdDensityMonitor:
                 print(f"[WARNING] Button listening failed: {e}")
                 time.sleep(0.1)
     
+    def _button2_worker(self):
+        """Second button listening worker thread - controls video drawing"""
+        import time
+        last_state = self.GPIO.LOW
+        
+        while not self.stop_button2:
+            try:
+                button_state = self.GPIO.input(self.BUTTON2_PIN)
+                
+                # Detect button press from LOW to HIGH
+                if button_state == self.GPIO.HIGH and last_state == self.GPIO.LOW:
+                    current_time = time.time()
+                    
+                    # Debounce handling
+                    if (current_time - self.last_button2_press) > self.button2_debounce_time:
+                        # Toggle drawing state
+                        self.drawing_enabled = not self.drawing_enabled
+                        
+                        if self.drawing_enabled:
+                            print("[Button2] Drawing enabled ✓")
+                            # Turn on LED
+                            self.GPIO.output(self.LED2_PIN, self.GPIO.HIGH)
+                        else:
+                            print("[Button2] Drawing disabled ✗")
+                            # Turn off LED
+                            self.GPIO.output(self.LED2_PIN, self.GPIO.LOW)
+                        
+                        self.last_button2_press = current_time
+                
+                last_state = button_state
+                time.sleep(0.05)  # Debounce delay
+                
+            except Exception as e:
+                print(f"[WARNING] Button 2 listening failed: {e}")
+                time.sleep(0.1)
+    
     def generate_frames(self):
         """Generate video stream - with detection boxes and information overlay"""
         detection_frame_counter = 0
@@ -374,21 +444,28 @@ class CrowdDensityMonitor:
                 person_count = self.person_count
                 density = self.density
                 inference_time = self.inference_time
+                drawing_enabled = self.drawing_enabled
             
-            # Draw detection boxes
-            for detection in detections:
-                x1, y1, x2, y2 = detection.xyxy[0]
-                cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-            
-            # Draw text information
-            cv2.putText(display_frame, f'People Count: {person_count}', (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(display_frame, f'Density: {density:.2f}', (10, 70),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(display_frame, f'Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', (10, 110),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            cv2.putText(display_frame, f'Inference: {inference_time*1000:.0f}ms', (10, 150),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            # Only draw if drawing is enabled
+            if drawing_enabled:
+                # Draw detection boxes
+                for detection in detections:
+                    x1, y1, x2, y2 = detection.xyxy[0]
+                    cv2.rectangle(display_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                
+                # Draw text information
+                cv2.putText(display_frame, f'People Count: {person_count}', (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(display_frame, f'Density: {density:.2f}', (10, 70),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(display_frame, f'Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', (10, 110),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(display_frame, f'Inference: {inference_time*1000:.0f}ms', (10, 150),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            else:
+                # Show "Drawing Disabled" message when drawing is off
+                cv2.putText(display_frame, 'Drawing Disabled', (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             
             # Encode as JPEG
             ret, buffer = cv2.imencode('.jpg', display_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
