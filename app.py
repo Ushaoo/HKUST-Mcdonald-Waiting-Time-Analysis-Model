@@ -582,9 +582,11 @@ class CrowdDensityMonitor:
             # Clean up GPIO
             if self.GPIO:
                 try:
+                    # Turn off all LEDs
                     self.GPIO.output(self.LED_PIN, self.GPIO.LOW)
+                    self.GPIO.output(self.LED2_PIN, self.GPIO.LOW)
                     self.GPIO.cleanup()
-                    print("[✓] GPIO cleaned up")
+                    print("[✓] GPIO cleaned up - all LEDs turned off")
                 except Exception as e:
                     print(f"[WARNING] GPIO cleanup failed: {e}")
         except Exception as e:
@@ -922,4 +924,13 @@ if __name__ == '__main__':
         print("\nShutting down...")
         if monitor:
             monitor.stop_detection_thread()
+            # Explicitly clean up GPIO before exit
+            if monitor.GPIO:
+                try:
+                    monitor.GPIO.output(monitor.LED_PIN, monitor.GPIO.LOW)
+                    monitor.GPIO.output(monitor.LED2_PIN, monitor.GPIO.LOW)
+                    monitor.GPIO.cleanup()
+                    print("[✓] GPIO cleanup before exit")
+                except Exception as e:
+                    print(f"[WARNING] GPIO cleanup failed: {e}")
         print("✓ Safely shut down")
