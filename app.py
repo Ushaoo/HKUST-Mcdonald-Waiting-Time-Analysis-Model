@@ -7,6 +7,8 @@ from flask import Flask, render_template, Response, request, jsonify, send_from_
 import threading
 import time
 import os
+import signal
+import atexit
 from werkzeug.utils import secure_filename
 from pathlib import Path
 
@@ -595,6 +597,28 @@ class CrowdDensityMonitor:
 # Global monitor instance
 monitor = None
 
+def cleanup_gpio():
+    """Clean up GPIO on exit"""
+    global monitor
+    if monitor and monitor.GPIO:
+        try:
+            print("\n[GPIO Cleanup] Turning off LEDs...")
+            monitor.GPIO.output(monitor.LED_PIN, monitor.GPIO.LOW)
+            monitor.GPIO.output(monitor.LED2_PIN, monitor.GPIO.LOW)
+            monitor.GPIO.cleanup()
+            print("[✓] GPIO successfully cleaned up")
+        except Exception as e:
+            print(f"[WARNING] GPIO cleanup error: {e}")
+
+def signal_handler(signum, frame):
+    """Handle signals (SIGINT, SIGTERM)"""
+    print("\n[SIGNAL] Received interrupt signal")
+    cleanup_gpio()
+    if monitor:
+        monitor.stop_detection_thread()
+    print("✓ Exiting...")
+    exit(0)
+
 def init_monitor():
     """Initialize the monitor"""
     global monitor
@@ -607,6 +631,14 @@ def init_monitor():
             conf=0.2
         )
         monitor.start_detection_thread()
+        
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Register atexit handler as fallback
+        atexit.register(cleanup_gpio)
+        
     except Exception as e:
         print(f"[ERROR] Failed to initialize monitor: {e}")
         print("[INFO] Using simulated data")
@@ -919,18 +951,16 @@ if __name__ == '__main__':
         debug = FLASK_CONFIG.get('DEBUG', False)
         threaded = FLASK_CONFIG.get('THREADED', True)
         
+        print("[OK] Starting Flask server...")
         app.run(host=host, port=port, debug=debug, threaded=threaded)
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        print("\n[KeyboardInterrupt] Shutting down...")
+        cleanup_gpio()
         if monitor:
             monitor.stop_detection_thread()
-            # Explicitly clean up GPIO before exit
-            if monitor.GPIO:
-                try:
-                    monitor.GPIO.output(monitor.LED_PIN, monitor.GPIO.LOW)
-                    monitor.GPIO.output(monitor.LED2_PIN, monitor.GPIO.LOW)
-                    monitor.GPIO.cleanup()
-                    print("[✓] GPIO cleanup before exit")
-                except Exception as e:
-                    print(f"[WARNING] GPIO cleanup failed: {e}")
         print("✓ Safely shut down")
+    except Exception as e:
+        print(f"\n[ERROR] Application error: {e}")
+        cleanup_gpio()
+        if monitor:
+            monitor.stop_detection_thread()
