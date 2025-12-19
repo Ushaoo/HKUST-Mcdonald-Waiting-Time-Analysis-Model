@@ -296,10 +296,28 @@
       return 0; 
     }
 
+    // Get current weekday from server
+    function getCurrentWeekday() {
+      return fetch('/api/time')
+        .then(response => response.json())
+        .then(data => data.weekday)
+        .catch(error => {
+          console.error('Error fetching weekday:', error);
+          return 0; // Default to Monday if error
+        });
+    }
+
     // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         // Set default time slot to current time slot
       currentSlot = getCurrentTimeSlot();
+      
+      // Set default weekday to current weekday from server
+      currentWeekday = await getCurrentWeekday();
+      
+      // Update weekday button UI
+      document.querySelectorAll('[data-weekday]').forEach(b => b.classList.remove('active'));
+      document.querySelector(`[data-weekday="${currentWeekday}"]`).classList.add('active');
       
       //  Set weekday button events  
       document.querySelectorAll('[data-weekday]').forEach(btn => {
