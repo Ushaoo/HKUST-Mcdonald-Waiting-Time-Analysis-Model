@@ -800,16 +800,31 @@ def api_weekday_data(weekday):
             if i < len(smoothed_counts):
                 item['person_count'] = smoothed_counts[i]
         
-        # Data sampling: take one data point every 10 minutes to reduce chart density
+        # Data sampling: take one data point every 10 records to reduce chart density
+        # But ensure we have a reasonable number of data points (at least 24 for hourly overview)
+        sample_interval = max(1, len(data) // 100)  # Aim for ~100 data points max
         sampled_data = []
-        for i in range(0, len(data), 10):
+        for i in range(0, len(data), sample_interval):
             sampled_data.append(data[i])
+        
+        # Remove duplicate times (keep the last occurrence)
+        seen_times = {}
+        deduped_data = []
+        for item in sampled_data:
+            time_key = item['time']
+            seen_times[time_key] = item
+        
+        # Reconstruct in original order
+        for item in sampled_data:
+            if item in seen_times.values():
+                deduped_data.append(item)
+                del seen_times[item['time']]
         
         return jsonify({
             'weekday': weekday,
             'weekday_name': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][weekday],
             'records_count': len(records),
-            'data': sampled_data,
+            'data': deduped_data,
             'stats': {
                 'avg_people': round(stats['avg_people'], 1) if stats else 0,
                 'max_people': stats['max_people'] if stats else 0,

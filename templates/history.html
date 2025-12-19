@@ -385,9 +385,18 @@
     function updateChart(data) {
       const ctx = document.getElementById('timeSeriesChart').getContext('2d');
 
-      // Extract time and person counts
-      const labels = data.data.map(d => d.time);
-      const personCounts = data.data.map(d => d.person_count);
+      // Extract time and person counts, remove duplicates
+      const seenTimes = new Set();
+      const labels = [];
+      const personCounts = [];
+      
+      data.data.forEach(d => {
+        if (!seenTimes.has(d.time)) {
+          seenTimes.add(d.time);
+          labels.push(d.time);
+          personCounts.push(d.person_count);
+        }
+      });
 
       // Destroy previous chart
       if (chart) {
@@ -457,7 +466,8 @@
                 font: { size: 10 },
                 color: '#999',
                 maxRotation: 45,
-                minRotation: 0
+                minRotation: 0,
+                maxTicksLimit: 12
               },
               grid: {
                 display: false
