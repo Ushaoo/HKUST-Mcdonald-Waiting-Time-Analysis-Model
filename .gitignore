@@ -3,3 +3,22 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Data files
+*.db
+crowd_data.db
+uploads/
+processed_videos/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
+.env
+.env.local

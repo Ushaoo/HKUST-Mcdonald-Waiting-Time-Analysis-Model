@@ -120,6 +120,24 @@ class CrowdDatabase:
         result = cursor.fetchone()
         conn.close()
         return result
+    
+    def clear_all(self):
+        """Clear all data (for testing only)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('DELETE FROM crowd_records')
+        
+        conn.commit()
+        conn.close()
+        print("[⚠️] All data cleared")
+    
+    def get_database_size(self):
+        """Get database size"""
+        if os.path.exists(self.db_path):
+            size = os.path.getsize(self.db_path)
+            return size / 1024 / 1024  # Convert to MB
+        return 0
 
 
 # Global database instance
