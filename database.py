@@ -2,7 +2,7 @@
 Database initialization and management module
 SQLite database designed for storing crowd monitoring data
 
-Table structure description：
+Table structure description:
 - crowd_records: Real-time crowd records (each record contains: person count, time, day of week)
   Minimalist design, only recording necessary information
 """
@@ -12,7 +12,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 数据库文件路径
+# Database file path
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, 'crowd_data.db')
 
@@ -56,10 +56,10 @@ class CrowdDatabase:
         
         conn.commit()
         conn.close()
-        print(f"[✓] 数据库初始化完成: {self.db_path}")
+        print(f"[✓] Database initialized: {self.db_path}")
     
     def add_record(self, timestamp, person_count, weekday=None):
-        """添加一条人群记录"""
+        """Add a crowd record"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -76,7 +76,7 @@ class CrowdDatabase:
             conn.commit()
             return True
         except sqlite3.IntegrityError:
-            # 时间戳重复，更新记录
+            # Duplicate timestamp, update record
             cursor.execute('''
                 UPDATE crowd_records 
                 SET person_count=?
@@ -102,38 +102,8 @@ class CrowdDatabase:
         conn.close()
         return records
     
-    def get_records_by_time_range(self, start_time, end_time):
-        """获取指定时间范围内的记录"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM crowd_records 
-            WHERE timestamp BETWEEN ? AND ?
-            ORDER BY timestamp
-        ''', (start_time, end_time))
-        
-        records = cursor.fetchall()
-        conn.close()
-        return records
-    
-    def get_latest_records(self, limit=100):
-        """获取最新的N条记录"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM crowd_records 
-            ORDER BY timestamp DESC
-            LIMIT ?
-        ''', (limit,))
-        
-        records = cursor.fetchall()
-        conn.close()
-        return records
-    
     def get_weekday_stats(self, weekday):
-        """获取指定星期几的统计数据"""
+        """Get statistics for specified weekday"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -150,47 +120,19 @@ class CrowdDatabase:
         result = cursor.fetchone()
         conn.close()
         return result
-    
-    def clear_all(self):
-        """清空所有数据（仅用于测试）"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM crowd_records')
-        
-        conn.commit()
-        conn.close()
-        print("[⚠️] 所有数据已清空")
-    
-    def get_database_size(self):
-        """Get database size"""
-        if os.path.exists(self.db_path):
-            size = os.path.getsize(self.db_path)
-            return size / 1024 / 1024  # 转换为MB
-        return 0
-    
-    def get_record_count(self):
-        """获取总记录数"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT COUNT(*) FROM crowd_records')
-        count = cursor.fetchone()[0]
-        conn.close()
-        return count
 
 
-# 全局数据库实例
+# Global database instance
 db = None
 
 def init_db(db_path=DB_PATH):
-    """初始化全局数据库实例"""
+    """Initialize global database instance"""
     global db
     db = CrowdDatabase(db_path)
     return db
 
 def get_db():
-    """获取全局数据库实例"""
+    """Get global database instance"""
     global db
     if db is None:
         db = init_db()

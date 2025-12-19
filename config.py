@@ -30,15 +30,15 @@ ROUTES_CONFIG = {
         'type': 'api',
         'description': 'Get real-time statistics'
     },
-    '/api/history': {
-        'name': 'Historical Data API',
+    '/api/weekday/<int:weekday>': {
+        'name': 'Historical Data by Weekday API',
         'type': 'api',
-        'description': 'Get historical statistics'
+        'description': 'Get historical statistics for specific weekday'
     },
-    '/api/stats': {
-        'name': 'Detailed Statistics API',
+    '/api/time': {
+        'name': 'Server Time API',
         'type': 'api',
-        'description': 'Get detailed detection statistics'
+        'description': 'Get current server time and weekday'
     },
     
     # Media routes
@@ -46,11 +46,6 @@ ROUTES_CONFIG = {
         'name': 'Real-time Video Stream',
         'type': 'stream',
         'description': 'Live camera video stream'
-    },
-    '/upload': {
-        'name': 'Image Upload',
-        'type': 'api',
-        'methods': ['POST']
     },
 }
 
@@ -165,6 +160,5 @@ def get_startup_info():
         'home': f'http://{host}:{port}/',
         'history': f'http://{host}:{port}/history',
         'api_realtime': f'http://{host}:{port}/api/realtime',
-        'api_history': f'http://{host}:{port}/api/history',
         'video_stream': f'http://{host}:{port}/video_feed',
     }

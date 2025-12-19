@@ -38,9 +38,6 @@ OUTPUT_FOLDER = os.path.join(BASE_DIR, 'processed_videos')
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
 
-ALLOWED_EXTENSIONS = SECURITY_CONFIG.get('allowed_image_extensions', {'png', 'jpg', 'jpeg', 'gif', 'bmp'})
-VIDEO_EXTENSIONS = SECURITY_CONFIG.get('allowed_video_extensions', {'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'})
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -645,16 +642,6 @@ def init_monitor():
         monitor = None
 
 
-def allowed_file(filename):
-    """Check if the file is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def allowed_video(filename):
-    """Check if the video file is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in VIDEO_EXTENSIONS
-
-
 # ========== Route Definitions ==========
 @app.route('/')
 def index():
@@ -712,38 +699,6 @@ def api_realtime():
             "pickup_time": "8-12 minutes",
             "crowd_level": "Medium",
             "crowd_range": "Approximately 35-50 people"
-        })
-
-
-@app.route('/api/save-manual', methods=['POST'])
-def api_save_manual():
-    """Manually save current data API (optional Web trigger)"""
-    if monitor:
-        success = monitor.save_button_data()
-        monitor.blink_led(times=2, interval=0.15)
-        return jsonify({
-            'success': success,
-            'person_count': monitor.person_count,
-            'timestamp': datetime.now().isoformat()
-        })
-    else:
-        return jsonify({'success': False, 'error': 'Monitor not initialized'}), 500
-
-
-@app.route('/api/history')
-def api_history():
-    """Get historical data API"""
-    if monitor:
-        return jsonify(monitor.get_history_stats())
-    else:
-        return jsonify({
-            "weekly_flow": [30, 45, 60, 50, 70, 80, 65],
-            "peak_times": {"早上": 20, "中午": 60, "晚上": 40},
-            "heatmap": [
-                [10, 20, 30, 40],
-                [15, 25, 35, 45],
-                [20, 30, 40, 50]
-            ]
         })
 
 
@@ -836,54 +791,9 @@ def api_weekday_data(weekday):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/db/stats')
-def api_db_stats():
-    """Get Database statistics"""
-    try:
-        db = get_db()
-        if not db:
-            return jsonify({'error': 'Database not initialized'}), 503
-        
-        record_count = db.get_record_count()
-        db_size = db.get_database_size()
-        
-        return jsonify({
-            'db_path': db.db_path,
-            'record_count': record_count,
-            'db_size_mb': round(db_size, 2),
-            'db_status': 'normal' if record_count > 0 else 'empty'
-        })
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-
-@app.route('/api/stats')
-def get_stats():
-    """Get real-time detection statistics"""
-    if monitor:
-        with monitor.lock:
-            return jsonify({
-                'person_count': monitor.person_count,
-                'density': monitor.density,
-                'inference_time': monitor.inference_time,
-                'confidence_threshold': monitor.confidence_threshold,
-                'frame_count': monitor.frame_count
-            })
-    else:
-        return jsonify({
-            'person_count': 0,
-            'density': 0,
-            'inference_time': 0,
-            'confidence_threshold': 0.2,
-            'frame_count': 0
-        })
-
-
 @app.route('/video_feed')
 def video_feed():
-    """实时视频流"""
+    """ Realtime Video Stream"""
     if monitor:
         return Response(monitor.generate_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -892,51 +802,7 @@ def video_feed():
         return jsonify({'error': 'Camera not initialized'}), 503
 
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    """Handle uploaded photos"""
-    if monitor is None:
-        return jsonify({'error': 'Monitor not initialized'}), 503
-    
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file'}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        result_frame, person_count, density = monitor.process_uploaded_image(filepath)
-        
-        if result_frame is None:
-            return jsonify({'error': 'Unable to read image'}), 400
-        
-        result_filename = f'result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jpg'
-        result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
-        cv2.imwrite(result_path, result_frame)
-        
-        return jsonify({
-            'success': True,
-            'person_count': int(person_count),
-            'density': float(density),
-            'image_url': f'/static/{result_filename}'
-        })
-    
-    return jsonify({'error': 'File format not supported'}), 400
 
-
-@app.route('/get_image/<filename>')
-def get_image(filename):
-    """Get processed image"""
-    try:
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    except:
-        return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
     print("=" * 70)
