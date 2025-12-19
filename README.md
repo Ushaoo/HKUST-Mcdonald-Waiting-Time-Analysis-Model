@@ -1,4 +1,5 @@
-# McDonald's Crowd Density Monitoring System
+# HKUST-Mcdonald-Waiting-Time-Analysis-Model
+
 
 ## Project Overview
 
