@@ -308,15 +308,23 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async function() {
+      try {
         // Set default time slot to current time slot
-      currentSlot = getCurrentTimeSlot();
-      
-      // Set default weekday to current weekday from server
-      currentWeekday = await getCurrentWeekday();
-      
-      // Update weekday button UI
-      document.querySelectorAll('[data-weekday]').forEach(b => b.classList.remove('active'));
-      document.querySelector(`[data-weekday="${currentWeekday}"]`).classList.add('active');
+        currentSlot = getCurrentTimeSlot();
+        
+        // Set default weekday to current weekday from server
+        currentWeekday = await getCurrentWeekday();
+        
+        // Update weekday button UI
+        document.querySelectorAll('[data-weekday]').forEach(b => b.classList.remove('active'));
+        const weekdayBtn = document.querySelector(`[data-weekday="${currentWeekday}"]`);
+        if (weekdayBtn) {
+          weekdayBtn.classList.add('active');
+        } else {
+          console.warn(`Weekday button for ${currentWeekday} not found`);
+          // Fallback to first button
+          document.querySelector('[data-weekday="0"]').classList.add('active');
+        }
       
       //  Set weekday button events  
       document.querySelectorAll('[data-weekday]').forEach(btn => {
@@ -340,18 +348,38 @@
 
       // Set default selected time slot button (remove all active first, then add current)
       document.querySelectorAll('[data-slot]').forEach(b => b.classList.remove('active'));
-      document.querySelector(`[data-slot="${currentSlot}"]`).classList.add('active');
+      const slotBtn = document.querySelector(`[data-slot="${currentSlot}"]`);
+      if (slotBtn) {
+        slotBtn.classList.add('active');
+      } else {
+        console.warn(`Slot button for ${currentSlot} not found`);
+        document.querySelector('[data-slot="0"]').classList.add('active');
+      }
       
+      console.log('Initialization complete. Loading initial data...');
       // Load initial data
       loadData();
+      } catch (error) {
+        console.error('Initialization error:', error);
+        console.error('Error stack:', error.stack);
+      }
     });
 
     function loadData() {
       const url = `/api/weekday/${currentWeekday}`;
+      
+      console.log(`Loading data for weekday ${currentWeekday} from ${url}`);
 
       fetch(url)
-        .then(response => response.json())
+        .then(response => {
+          console.log(`Response status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log(`Data received:`, data);
           // Calculate average people count for current time period
           const slot = timeSlots[currentSlot];
           const [startHour, endHour] = slot.range;
@@ -376,8 +404,14 @@
           updateChart(data);
         })
         .catch(error => {
-          console.error('Error:', error);
-          alert('Unable to load data');
+          console.error('Error fetching data:', error);
+          console.error('Error stack:', error.stack);
+          const avgElement = document.getElementById('avgPeople');
+          if (avgElement) {
+            avgElement.textContent = 'Error';
+          }
+          // Still try to display a message
+          alert(`Error loading data: ${error.message}`);
         });
     }
 
